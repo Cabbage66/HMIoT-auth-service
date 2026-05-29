@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>前端风格文档集 - 总览</title>
+  <link rel="stylesheet" href="./assets/base.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="doc-topbar">
+      <h1>系统前端风格文档集</h1>
+      <p>用于评审和展示，不依赖登录，不连接后端。</p>
+    </header>
+
+    <main class="doc-main">
+      <nav class="doc-nav">
+        <a class="active" href="./index.html">总览</a>
+        <a href="./style-system.html">风格系统</a>
+        <a href="./page-login.html">登录页风格</a>
+        <a href="./page-admin-dashboard.html">管理员页风格</a>
+        <a href="./page-user-overview.html">用户页风格</a>
+      </nav>
+
+      <section class="card">
+        <h2>整理目标</h2>
+        <p>基于现有 `trust/frontend` 的视觉实现，提炼统一的 UI 语言，并生成可直接查看的页面文档。文档聚焦「风格、布局、组件语义」，不包含业务接口与后端逻辑。</p>
+      </section>
+
+      <section class="grid cols-3" style="margin-top: 16px;">
+        <article class="card">
+          <h3>视觉基调</h3>
+          <ul class="clean">
+            <li>后台工作台风格，强调稳定、清晰、可读性。</li>
+            <li>头部采用渐变色带，内容区使用浅灰底 + 白卡片。</li>
+            <li>图标与数据卡配合高饱和渐变做信息分层。</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h3>信息结构</h3>
+          <ul class="clean">
+            <li>固定顶栏 + 左侧导航 + 面包屑 + 内容卡片。</li>
+            <li>核心指标优先使用 4 宫格统计卡片展示。</li>
+            <li>图表/活动/状态块采用并列布局组织二级信息。</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h3>组件特征</h3>
+          <ul class="clean">
+            <li>圆角主导：按钮/输入/卡片统一 6-12px 圆角。</li>
+            <li>悬浮阴影偏轻：强调层次但不过度立体。</li>
+            <li>状态色继承 Element Plus 语义色体系。</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="card" style="margin-top: 16px;">
+        <h2>文档清单</h2>
+        <div class="grid cols-2">
+          <div class="card" style="padding: 12px;">
+            <h3>1. 风格系统</h3>
+            <p>总结颜色、字体、间距、圆角、阴影、状态色、响应式规则。</p>
+            <a href="./style-system.html">打开页面</a>
+          </div>
+          <div class="card" style="padding: 12px;">
+            <h3>2. 登录页风格</h3>
+            <p>展示品牌渐变背景 + 半透明登录卡 + 特性侧栏结构。</p>
+            <a href="./page-login.html">打开页面</a>
+          </div>
+          <div class="card" style="padding: 12px;">
+            <h3>3. 管理员页风格</h3>
+            <p>展示后台导航骨架、统计卡、活动区与状态区布局方式。</p>
+            <a href="./page-admin-dashboard.html">打开页面</a>
+          </div>
+          <div class="card" style="padding: 12px;">
+            <h3>4. 用户页风格</h3>
+            <p>展示普通用户视图的蓝青系主题与简化操作信息流。</p>
+            <a href="./page-user-overview.html">打开页面</a>
+          </div>
+        </div>
+      </section>
+
+      <p class="footer-note">建议从本页开始按顺序浏览，即可完成风格评审。</p>
+    </main>
+  </div>
+</body>
+</html>

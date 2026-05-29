@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>前端风格文档集 - 风格系统</title>
+  <link rel="stylesheet" href="./assets/base.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="doc-topbar">
+      <h1>风格系统</h1>
+      <p>提取自现有前端页面的视觉规则（用于统一设计与开发实现）。</p>
+    </header>
+
+    <main class="doc-main">
+      <nav class="doc-nav">
+        <a href="./index.html">总览</a>
+        <a class="active" href="./style-system.html">风格系统</a>
+        <a href="./page-login.html">登录页风格</a>
+        <a href="./page-admin-dashboard.html">管理员页风格</a>
+        <a href="./page-user-overview.html">用户页风格</a>
+      </nav>
+
+      <section class="card">
+        <h2>核心变量</h2>
+        <dl class="kv">
+          <dt>主背景</dt><dd>#f0f2f5（弱对比，提升内容卡可读性）</dd>
+          <dt>内容卡</dt><dd>#ffffff + 轻边框 + 轻阴影</dd>
+          <dt>主文字</dt><dd>#303133 / 次级 #606266 / 提示 #909399</dd>
+          <dt>主语义色</dt><dd>Primary #409eff、Success #67c23a、Warning #e6a23c、Danger #f56c6c</dd>
+          <dt>头部渐变</dt><dd>管理员：#667eea → #764ba2；用户：#4facfe → #00f2fe</dd>
+          <dt>圆角策略</dt><dd>6px（输入/按钮） / 10px（中组件） / 12px（卡片）</dd>
+        </dl>
+      </section>
+
+      <section class="card" style="margin-top: 16px;">
+        <h2>色板</h2>
+        <div class="palette">
+          <div class="swatch"><div class="swatch-color" style="background:#409eff"></div><div class="swatch-label">Primary #409eff</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#67c23a"></div><div class="swatch-label">Success #67c23a</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#e6a23c"></div><div class="swatch-label">Warning #e6a23c</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#f56c6c"></div><div class="swatch-label">Danger #f56c6c</div></div>
+          <div class="swatch"><div class="swatch-color" style="background:#909399"></div><div class="swatch-label">Info #909399</div></div>
+        </div>
+      </section>
+
+      <section class="grid cols-2" style="margin-top: 16px;">
+        <article class="card">
+          <h3>布局规则</h3>
+          <ul class="clean">
+            <li>页面容器优先使用 `el-container` 纵横组合。</li>
+            <li>顶栏固定，内容区使用面包屑 + 卡片区块。</li>
+            <li>大屏常见结构：`4列统计卡 + 2列内容区`。</li>
+            <li>移动端在 768/960 断点下收敛为单列。</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h3>组件风格</h3>
+          <ul class="clean">
+            <li>菜单激活：浅蓝底 + 蓝色文字 + 右侧高亮边。</li>
+            <li>卡片 hover：位移或阴影轻微增强，避免强动画。</li>
+            <li>状态通过 Tag/Progress/Alert 传达，颜色语义统一。</li>
+            <li>图标与数字组合的「统计卡」是核心视觉单元。</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="card" style="margin-top: 16px;">
+        <h2>微交互与可用性</h2>
+        <ul class="clean">
+          <li>过渡时间以 0.2s~0.3s 为主，强调“快反馈”。</li>
+          <li>滚动条自定义为浅灰系，保持中性低干扰。</li>
+          <li>按钮、输入、列表项 hover 都有明确反馈状态。</li>
+          <li>中文信息密度较高时优先保证对齐和留白节奏。</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

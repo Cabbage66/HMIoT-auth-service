@@ -1,0 +1,317 @@
+# ============================================================
+# Project-wide ignores for HMIoT-auth-service
+# Covers Java/Spring Boot, Vue/Vite, Android/Gradle, Python models,
+# Docker/LDAP certificate data, IDE files, OS files, logs, secrets,
+# build outputs, and generated runtime artifacts.
+# ============================================================
+
+# ----------------------------
+# OS / filesystem noise
+# ----------------------------
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ----------------------------
+# Editor / IDE
+# ----------------------------
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.factorypath
+*.swp
+*.swo
+*~
+
+# Keep optional shared VS Code recommendations only if explicitly needed.
+!.vscode/extensions.json
+!frontend/.vscode/extensions.json
+
+# ----------------------------
+# Environment / local config / secrets
+# ----------------------------
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+*.local.*
+local.properties
+application-dev.yml
+application-local.yml
+application-local.yaml
+application-local.properties
+application-secret.yml
+application-secret.yaml
+application-secret.properties
+secrets/
+secret/
+credentials/
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.truststore
+*.csr
+*.crt
+*.cer
+
+# ----------------------------
+# Logs / temp files
+# ----------------------------
+logs/
+log/
+*.log
+*.log.*
+*.pid
+*.seed
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+*.rej
+tmp/
+temp/
+.cache/
+.tmp/
+
+# ----------------------------
+# Java / Spring Boot / Maven
+# ----------------------------
+target/
+*/target/
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+hs_err_pid*
+replay_pid*
+dependency-reduced-pom.xml
+*.class
+*.jar
+*.war
+*.ear
+
+# Keep Maven wrapper scripts and wrapper properties.
+!backend/mvnw
+!backend/mvnw.cmd
+!backend/.mvn/
+!backend/.mvn/wrapper/
+!backend/.mvn/wrapper/maven-wrapper.properties
+
+# ----------------------------
+# Node / Vue / Vite frontend
+# ----------------------------
+node_modules/
+*/node_modules/
+dist/
+*/dist/
+.vite/
+*/.vite/
+.nuxt/
+.output/
+coverage/
+*/coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+.stylelintcache
+
+# Keep lockfiles for reproducible frontend installs.
+!frontend/package-lock.json
+!frontend/package.json
+
+# ----------------------------
+# Android / Gradle
+# ----------------------------
+.gradle/
+*/.gradle/
+.kotlin/
+*/.kotlin/
+build/
+*/build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.ap_
+*.aab
+*.aar
+*.dex
+*.hprof
+*.prof
+*.profm
+*.keystore
+*.jks
+
+# Keep Gradle wrapper and build definitions.
+!HMIoTApp/gradle/
+!HMIoTApp/gradle/wrapper/
+!HMIoTApp/gradle/wrapper/gradle-wrapper.properties
+!HMIoTApp/gradle/wrapper/gradle-wrapper.jar
+!HMIoTApp/gradlew
+!HMIoTApp/gradlew.bat
+!HMIoTApp/settings.gradle
+!HMIoTApp/settings.gradle.kts
+!HMIoTApp/build.gradle
+!HMIoTApp/build.gradle.kts
+!HMIoTApp/gradle.properties
+
+# ----------------------------
+# Python / model services
+# ----------------------------
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+venv/
+.venv/
+env/
+.envrc
+pip-wheel-metadata/
+*.egg-info/
+build/
+develop-eggs/
+downloads/
+eggs/
+sdist/
+wheels/
+share/python-wheels/
+*.manifest
+*.spec
+
+# ----------------------------
+# Data science / ML artifacts
+# ----------------------------
+*.joblib
+*.pkl
+*.pickle
+*.npy
+*.npz
+*.onnx
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.hdf5
+*.model
+*.bin
+*.safetensors
+*.wav
+*.mp3
+*.flac
+*.m4a
+
+# UEBA generated results and model outputs.
+UEBA4.2/result/
+UEBA4.2/result2/
+UEBA4.2/model/*.joblib
+UEBA4.2/model/*.pkl
+UEBA4.2/model/*.pickle
+
+# Voiceprint model binaries and runtime uploads.
+voiceprint-engine/models/
+voiceprint-engine/uploads/
+voiceprint-engine/data/
+voiceprint-engine/tmp/
+
+# ----------------------------
+# LDAP / certificate system runtime data
+# ----------------------------
+ldap-cert-system/certs/
+ldap-cert-system/data/
+ldap-cert-system/ldap/data/
+ldap-cert-system/ldap/runtime/
+ldap-cert-system/openssl/private/
+ldap-cert-system/**/*.key
+ldap-cert-system/**/*.pem
+ldap-cert-system/**/*.crt
+ldap-cert-system/**/*.cer
+ldap-cert-system/**/*.csr
+ldap-cert-system/**/*.p12
+ldap-cert-system/**/*.pfx
+ldap-cert-system/**/*.jks
+ldap-cert-system/**/*.keystore
+
+# Keep source configs and scripts in certificate system.
+!ldap-cert-system/openssl/openssl.cnf
+!ldap-cert-system/scripts/
+!ldap-cert-system/scripts/**
+!ldap-cert-system/ldap/bootstrap/
+!ldap-cert-system/ldap/bootstrap/**
+
+# ----------------------------
+# Docker / runtime volumes
+# ----------------------------
+docker-data/
+.docker/
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+*.rar
+
+# ----------------------------
+# Database / local storage
+# ----------------------------
+*.db
+*.sqlite
+*.sqlite3
+*.mv.db
+*.trace.db
+mysql-data/
+redis-data/
+postgres-data/
+
+# ----------------------------
+# Generated docs / exports
+# ----------------------------
+*.pdf
+*.docx~
+~$*.docx
+*.pptx~
+~$*.pptx
+*.xlsx~
+~$*.xlsx
+
+# Keep project source documents under docs.
+!docs/**/*.md
+!docs/**/*.docx
+!docs/**/*.png
+!docs/**/*.jpg
+!docs/**/*.jpeg
+!docs/**/*.svg
+
+# ----------------------------
+# Misc generated files
+# ----------------------------
+.metadata/
+.recommenders/
+out/
+bin/
+generated/
+generated-sources/
+generated-test-sources/

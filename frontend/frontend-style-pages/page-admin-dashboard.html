@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>前端风格文档集 - 管理员页风格</title>
+  <link rel="stylesheet" href="./assets/base.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="doc-topbar">
+      <h1>管理员页风格（静态示意）</h1>
+      <p>展示后台布局骨架与信息分层样式。</p>
+    </header>
+
+    <main class="doc-main">
+      <nav class="doc-nav">
+        <a href="./index.html">总览</a>
+        <a href="./style-system.html">风格系统</a>
+        <a href="./page-login.html">登录页风格</a>
+        <a class="active" href="./page-admin-dashboard.html">管理员页风格</a>
+        <a href="./page-user-overview.html">用户页风格</a>
+      </nav>
+
+      <section class="layout-demo">
+        <div class="layout-header admin">
+          <strong>面向多网融合的人机物电子认证服务软件管理后台</strong>
+          <span>管理员 · admin</span>
+        </div>
+
+        <div class="layout-body">
+          <aside class="layout-aside">
+            <div class="menu-item active">概览面板</div>
+            <div class="menu-item">登录日志</div>
+            <div class="menu-item">用户管理</div>
+            <div class="menu-item">身份注册</div>
+            <div class="menu-item">生物凭据管理</div>
+            <div class="menu-item">系统互通访问</div>
+            <div class="menu-item">数据资源管理</div>
+          </aside>
+
+          <section class="layout-content">
+            <div class="breadcrumb">管理后台 / 概览面板</div>
+
+            <div class="stats-row">
+              <div class="stats-card g1"><h4>总用户数</h4><div class="num">3,268</div></div>
+              <div class="stats-card g2"><h4>数据资源总数</h4><div class="num">812</div></div>
+              <div class="stats-card g3"><h4>策略配置</h4><div class="num">96</div></div>
+              <div class="stats-card g4"><h4>网络实体</h4><div class="num">427</div></div>
+            </div>
+
+            <div class="content-row">
+              <article class="panel">
+                <div class="panel-header"><strong>系统访问趋势</strong><span class="tag info">7天</span></div>
+                <div class="fake-line" style="width:100%"></div>
+                <div class="fake-line" style="width:92%"></div>
+                <div class="fake-line" style="width:84%"></div>
+                <div class="fake-line" style="width:70%"></div>
+                <div class="fake-line" style="width:78%"></div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-header"><strong>最新活动</strong><span style="color:#409eff;font-size:12px;">查看全部</span></div>
+                <div class="fake-line" style="width:96%"></div>
+                <div class="fake-line" style="width:88%"></div>
+                <div class="fake-line" style="width:82%"></div>
+                <div class="fake-line" style="width:74%"></div>
+                <div class="fake-line" style="width:67%"></div>
+              </article>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="grid cols-2" style="margin-top: 16px;">
+        <article class="card">
+          <h3>页面风格要点</h3>
+          <ul class="clean">
+            <li>头部用深色渐变，承载系统级品牌与角色信息。</li>
+            <li>侧栏白底，激活态通过浅蓝底 + 蓝色边条强调定位。</li>
+            <li>统计卡优先使用高彩渐变，强化“总览面板”的数据感。</li>
+            <li>图表区与活动区采用白卡并列，形成主次信息双栏。</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h3>适用页面</h3>
+          <ul class="clean">
+            <li>管理驾驶舱（Dashboard）</li>
+            <li>策略配置中心</li>
+            <li>用户/资源/设备管理页</li>
+            <li>跨域访问与审计类页面</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>前端风格文档集 - 登录页风格</title>
+  <link rel="stylesheet" href="./assets/base.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="doc-topbar">
+      <h1>登录页风格（静态示意）</h1>
+      <p>仅演示视觉结构，不包含登录逻辑。</p>
+    </header>
+
+    <main class="doc-main">
+      <nav class="doc-nav">
+        <a href="./index.html">总览</a>
+        <a href="./style-system.html">风格系统</a>
+        <a class="active" href="./page-login.html">登录页风格</a>
+        <a href="./page-admin-dashboard.html">管理员页风格</a>
+        <a href="./page-user-overview.html">用户页风格</a>
+      </nav>
+
+      <section class="login-mock">
+        <div class="login-card">
+          <article class="login-panel">
+            <h2 style="margin:0 0 6px;">多网融合人机物电子认证系统</h2>
+            <p style="margin:0 0 20px;color:#606266;font-size:14px;">企业级身份认证与信任评估平台</p>
+
+            <div class="input">请选择认证主体（人员 / 设备 / 物联网设备）</div>
+            <div class="input">请输入用户标识（identifier）</div>
+            <div class="input">请输入凭据（credential）</div>
+            <div class="btn-primary">立即登录</div>
+
+            <p class="footer-note">采用多因子认证 + 智能信任评估</p>
+          </article>
+
+          <article class="login-panel">
+            <h3 style="margin:0 0 12px;">页面风格要点</h3>
+            <ul class="clean">
+              <li>背景：紫蓝渐变，制造品牌视觉识别。</li>
+              <li>主体：半透明白卡 + 模糊玻璃感（backdrop-filter）。</li>
+              <li>信息结构：左侧登录动作，右侧系统能力说明。</li>
+              <li>输入/按钮：大尺寸（42px+）提升触达与可读性。</li>
+              <li>语义色：操作按钮走 Primary，提示走中性灰。</li>
+            </ul>
+
+            <h3 style="margin:14px 0 10px;">适配建议</h3>
+            <ul class="clean">
+              <li>移动端收敛为单卡，特性介绍折叠到底部。</li>
+              <li>保持标题与副标题层级，不建议压缩过度。</li>
+              <li>保留足够上下留白，避免表单拥挤。</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

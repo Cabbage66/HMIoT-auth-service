@@ -1,0 +1,1087 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Android 登录与注册前端原型</title>
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --card: #ffffff;
+      --text: #121826;
+      --muted: #8b92a1;
+      --line: #eef0f5;
+      --blue: #12a8ff;
+      --blue-dark: #0587dc;
+      --field: #f1f3f7;
+      --green: #20c997;
+      --orange: #f59e0b;
+      --red: #ef4444;
+      --shadow: 0 22px 60px rgba(37, 48, 74, 0.13);
+      --radius-xl: 28px;
+      --radius-pill: 999px;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 18% 10%, rgba(18, 168, 255, 0.14), transparent 34%),
+        radial-gradient(circle at 82% 24%, rgba(125, 211, 252, 0.16), transparent 30%),
+        linear-gradient(180deg, #fbfcff 0%, var(--bg) 48%, #f4f7fb 100%);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .phone {
+      width: min(420px, 100%);
+      min-height: 860px;
+      background: #fff;
+      border-radius: 44px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      position: relative;
+      border: 10px solid #10131a;
+    }
+
+    .screen {
+      min-height: 840px;
+      background:
+        linear-gradient(180deg, rgba(18, 168, 255, 0.08) 0%, rgba(18, 168, 255, 0) 28%),
+        #fff;
+      position: relative;
+      padding: env(safe-area-inset-top) 28px 28px;
+      overflow: hidden;
+    }
+
+    .status-bar {
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      color: #1d2433;
+      opacity: 0.92;
+    }
+
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #1d2433;
+    }
+
+    .signal {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 12px;
+    }
+
+    .signal i {
+      width: 3px;
+      border-radius: 2px;
+      background: currentColor;
+      display: block;
+    }
+
+    .signal i:nth-child(1) { height: 4px; }
+    .signal i:nth-child(2) { height: 7px; }
+    .signal i:nth-child(3) { height: 10px; }
+
+    .battery {
+      width: 22px;
+      height: 11px;
+      border: 1.8px solid currentColor;
+      border-radius: 3px;
+      position: relative;
+    }
+
+    .battery::after {
+      content: "";
+      position: absolute;
+      right: -4px;
+      top: 3px;
+      width: 2px;
+      height: 5px;
+      border-radius: 0 2px 2px 0;
+      background: currentColor;
+    }
+
+    .page {
+      display: none;
+      animation: pageIn 0.22s ease;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    @keyframes pageIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .top-actions {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin-top: 2px;
+    }
+
+    .top-actions.between {
+      justify-content: space-between;
+    }
+
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(244, 247, 251, 0.88);
+      color: #3d4658;
+      font-size: 20px;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .language {
+      border: 0;
+      background: rgba(244, 247, 251, 0.88);
+      padding: 9px 14px;
+      border-radius: 99px;
+      color: #586174;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 26px;
+      margin-bottom: 30px;
+    }
+
+    .logo {
+      width: 82px;
+      height: 82px;
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at 50% 35%, #ffffff 0 9px, transparent 10px),
+        radial-gradient(circle at 36% 36%, #111 0 4px, transparent 5px),
+        radial-gradient(circle at 64% 36%, #111 0 4px, transparent 5px),
+        linear-gradient(180deg, #10131a 0 54%, #ffffff 55% 100%);
+      box-shadow: 0 14px 34px rgba(18, 168, 255, 0.18);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .logo::before {
+      content: "";
+      position: absolute;
+      left: 17px;
+      right: 17px;
+      bottom: 23px;
+      height: 13px;
+      border-radius: 99px;
+      background: #ff3b30;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.35) inset;
+    }
+
+    .logo::after {
+      content: "";
+      position: absolute;
+      left: 22px;
+      bottom: 9px;
+      width: 38px;
+      height: 16px;
+      background: #ffc83d;
+      border-radius: 0 0 22px 22px;
+    }
+
+    .brand h1 {
+      margin: 18px 0 0;
+      font-size: 32px;
+      line-height: 1;
+      letter-spacing: 1px;
+      font-weight: 760;
+    }
+
+    .login-card {
+      background: var(--card);
+      border-radius: var(--radius-xl);
+      padding: 2px 0 0;
+    }
+
+    .field {
+      min-height: 56px;
+      border-radius: var(--radius-pill);
+      background: var(--field);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      margin-bottom: 14px;
+      color: #9aa2af;
+      position: relative;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      font: inherit;
+      color: #222a38;
+      font-size: 16px;
+    }
+
+    .field input::placeholder {
+      color: #a5acb8;
+    }
+
+    .eye-icon {
+      width: 22px;
+      height: 14px;
+      margin-left: 10px;
+      border: 1.8px solid #9da6b5;
+      border-radius: 50%;
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .eye-icon::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #9da6b5;
+      transform: translate(-50%, -50%);
+    }
+
+    .eye-icon::after {
+      content: "";
+      position: absolute;
+      left: -3px;
+      top: 6px;
+      width: 28px;
+      height: 1.8px;
+      border-radius: 99px;
+      background: #9da6b5;
+      transform: rotate(-28deg);
+      transform-origin: center;
+    }
+
+    .main-login {
+      width: 68px;
+      height: 68px;
+      margin: 24px auto 0;
+      border-radius: 50%;
+      border: 0;
+      color: white;
+      background: linear-gradient(135deg, #2ac3ff, var(--blue-dark));
+      font-size: 31px;
+      box-shadow: 0 18px 35px rgba(18, 168, 255, 0.35);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .quick-zone {
+      margin-top: 108px;
+    }
+
+    .quick-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0 0 15px;
+      color: #a0a7b5;
+      font-size: 12px;
+    }
+
+    .quick-title::before,
+    .quick-title::after {
+      content: "";
+      height: 1px;
+      flex: 1;
+      background: var(--line);
+    }
+
+    .login-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .method {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
+      color: #5f6878;
+      font: inherit;
+    }
+
+    .method-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 6px;
+      border-radius: 17px;
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      background: #f4f7fb;
+      color: #2f80ed;
+      border: 1px solid #eef2f7;
+    }
+
+    .method:nth-child(2) .method-icon { color: #7c3aed; }
+    .method:nth-child(3) .method-icon { color: #f59e0b; }
+    .method:nth-child(4) .method-icon { color: #10b981; }
+
+    .method-icon svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      stroke-width: 1.9;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .method span {
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+
+    .footer {
+      margin-top: 42px;
+      display: flex;
+      justify-content: space-between;
+      color: #8f97a6;
+      font-size: 13px;
+    }
+
+    .footer a,
+    .footer button {
+      color: inherit;
+      text-decoration: none;
+      border: 0;
+      background: transparent;
+      font: inherit;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .page-head {
+      margin-top: 18px;
+      margin-bottom: 18px;
+    }
+
+    .page-head.compact {
+      margin-bottom: 16px;
+    }
+
+    .page-head h2 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.1;
+      letter-spacing: 0.2px;
+    }
+
+    .page-head p {
+      margin: 0;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .tab-card {
+      padding: 5px;
+      border-radius: 999px;
+      background: #f1f3f7;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      margin: 18px 0;
+    }
+
+    .tab-card button {
+      height: 42px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: #7b8494;
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .tab-card button.active {
+      background: #fff;
+      color: #152033;
+      box-shadow: 0 8px 22px rgba(39, 52, 80, 0.08);
+      font-weight: 700;
+    }
+
+    .form-card,
+    .record-card {
+      border-radius: 28px;
+      background: #fff;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 0;
+    }
+
+    .submit-btn {
+      width: 100%;
+      height: 54px;
+      border: 0;
+      border-radius: 999px;
+      margin-top: 14px;
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      font-size: 16px;
+      background: linear-gradient(135deg, #2ac3ff, var(--blue-dark));
+      box-shadow: 0 14px 32px rgba(18, 168, 255, 0.25);
+      cursor: pointer;
+    }
+
+    .subtle-btn {
+      width: 100%;
+      height: 50px;
+      border: 1px solid #e5eaf2;
+      border-radius: 999px;
+      margin-top: 12px;
+      color: #566174;
+      background: #fff;
+      font: inherit;
+      cursor: pointer;
+    }
+
+
+    .record-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .record {
+      border-radius: 24px;
+      background: #f7f9fc;
+      border: 1px solid #eef2f7;
+      padding: 15px;
+    }
+
+    .record-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .record strong {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+
+    .record small {
+      display: block;
+      color: #8b94a5;
+      font-size: 12px;
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 11px;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+
+    .badge.reviewing {
+      background: rgba(245, 158, 11, 0.12);
+      color: #b77905;
+    }
+
+    .badge.passed {
+      background: rgba(32, 201, 151, 0.12);
+      color: #087f5b;
+    }
+
+    .badge.rejected {
+      background: rgba(239, 68, 68, 0.1);
+      color: #c92a2a;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+      margin-top: 12px;
+    }
+
+    .step {
+      height: 6px;
+      border-radius: 99px;
+      background: #e4e9f2;
+    }
+
+    .step.done {
+      background: var(--blue);
+    }
+
+    .result-text {
+      margin-top: 10px;
+      color: #667085;
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+
+    .empty-state {
+      display: none;
+      text-align: center;
+      padding: 48px 18px;
+      color: #8b94a5;
+      background: #f7f9fc;
+      border-radius: 26px;
+      border: 1px dashed #dfe5ef;
+    }
+
+    .empty-state.show {
+      display: block;
+    }
+
+    .toast {
+      position: absolute;
+      left: 50%;
+      bottom: 36px;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(18, 24, 38, 0.86);
+      color: #fff;
+      border-radius: 999px;
+      padding: 11px 16px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.22s ease;
+      white-space: nowrap;
+      z-index: 10;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    #registerPage .field {
+      min-height: 50px;
+      border-radius: 16px;
+      background: #f6f8fb;
+      border: 1px solid #edf1f6;
+      margin-bottom: 10px;
+      padding: 0 15px;
+    }
+
+    #registerPage .field input {
+      font-size: 14.5px;
+    }
+
+    .bio-section {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+      margin-top: 4px;
+      margin-bottom: 12px;
+    }
+
+    .bio-card {
+      min-height: 86px;
+      border: 1px solid #edf1f6;
+      border-radius: 18px;
+      background: #f8fafc;
+      color: #4b5565;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      font: inherit;
+      cursor: pointer;
+      transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+    }
+
+    .bio-card:active {
+      transform: scale(0.98);
+    }
+
+    .bio-card.is-captured {
+      background: #eff9ff;
+      border-color: rgba(18, 168, 255, 0.35);
+      color: var(--blue-dark);
+    }
+
+    .bio-icon {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      color: currentColor;
+    }
+
+    .bio-icon svg {
+      width: 25px;
+      height: 25px;
+      stroke: currentColor;
+      stroke-width: 1.85;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .bio-card span:not(.bio-icon) {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .bio-card em {
+      font-style: normal;
+      font-size: 10.5px;
+      color: #9aa3b2;
+      line-height: 1;
+    }
+
+    .bio-card.is-captured em {
+      color: var(--blue-dark);
+    }
+
+    #registerPage .submit-btn {
+      height: 50px;
+      margin-top: 6px;
+      border-radius: 16px;
+      box-shadow: none;
+      font-size: 15px;
+    }
+
+    #registerPage .subtle-btn {
+      height: 48px;
+      border-radius: 16px;
+      margin-top: 10px;
+      background: #f8fafc;
+      border-color: #edf1f6;
+      font-size: 14px;
+    }
+
+    #recordsPage .subtle-btn {
+      height: 48px;
+      border-radius: 16px;
+      background: #f8fafc;
+      border-color: #edf1f6;
+      font-size: 14px;
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 0; background: #fff; }
+      .phone {
+        width: 100%;
+        min-height: 100vh;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .screen {
+        min-height: 100vh;
+      }
+    }
+
+    @media (max-height: 820px) {
+      .brand { margin-top: 12px; margin-bottom: 22px; }
+      .quick-zone { margin-top: 42px; }
+      .sheet { margin-top: 22px; }
+      .footer { margin-top: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <section class="screen" id="screen">
+      <div class="status-bar">
+        <span>9:41</span>
+        <div class="status-icons">
+          <div class="signal"><i></i><i></i><i></i></div>
+          <span>5G</span>
+          <div class="battery"></div>
+        </div>
+      </div>
+
+      <section class="page active" id="loginPage">
+        <div class="top-actions">
+          <button class="language">简体中文 ▾</button>
+        </div>
+
+        <header class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <h1>QQ</h1>
+        </header>
+
+        <section class="login-card" aria-label="登录表单">
+          <label class="field">
+            <input type="text" placeholder="用户名" />
+          </label>
+
+          <label class="field">
+            <input type="password" placeholder="输入密码" />
+            <span class="eye-icon" aria-hidden="true"></span>
+          </label>
+
+          <button class="main-login" aria-label="登录">→</button>
+
+          <div class="quick-zone">
+            <div class="quick-title">更多登录方式</div>
+
+            <div class="login-grid">
+              <button class="method">
+                <div class="method-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M7.6 11.2a4.4 4.4 0 0 1 8.8 0" />
+                    <path d="M6.2 15.4c.4-2.1.5-4.5 1.5-6.2A4.9 4.9 0 0 1 12 6.8a4.9 4.9 0 0 1 4.3 2.4c1 1.7 1.1 4.1 1.5 6.2" />
+                    <path d="M9.2 12.3c-.1 2-.5 4.2-1.4 5.9" />
+                    <path d="M12 10.2c1 0 1.8.8 1.8 1.8 0 2.7-.7 5.1-2 7.2" />
+                    <path d="M15.7 13.2c-.1 1.8-.4 3.5-1 5.1" />
+                    <path d="M4.5 11.5A7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 7.5 7.5" />
+                  </svg>
+                </div>
+                <span>指纹</span>
+              </button>
+              <button class="method">
+                <div class="method-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M8 4H6.5A2.5 2.5 0 0 0 4 6.5V8" />
+                    <path d="M16 4h1.5A2.5 2.5 0 0 1 20 6.5V8" />
+                    <path d="M8 20H6.5A2.5 2.5 0 0 1 4 17.5V16" />
+                    <path d="M16 20h1.5a2.5 2.5 0 0 0 2.5-2.5V16" />
+                    <path d="M8.8 10.2h.1" />
+                    <path d="M15.1 10.2h.1" />
+                    <path d="M9.2 15.3c1.7 1.4 3.9 1.4 5.6 0" />
+                    <path d="M12 10.8v2.4" />
+                  </svg>
+                </div>
+                <span>人脸</span>
+              </button>
+              <button class="method">
+                <div class="method-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M4 12h1.5" />
+                    <path d="M7.5 8v8" />
+                    <path d="M10.5 5.5v13" />
+                    <path d="M13.5 8v8" />
+                    <path d="M16.5 6.5v11" />
+                    <path d="M19.5 10v4" />
+                  </svg>
+                </div>
+                <span>声纹</span>
+              </button>
+              <button class="method">
+                <div class="method-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M7 3.8h7.2L18 7.6V20a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20V5.3a1.5 1.5 0 0 1 1-1.5z" />
+                    <path d="M14 4v4h4" />
+                    <path d="M8.8 14.2l2.1 2.1 4.4-4.7" />
+                    <path d="M8.8 9.6h2.7" />
+                  </svg>
+                </div>
+                <span>数字证书</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <footer class="footer">
+          <a href="javascript:void(0)">找回密码</a>
+          <button data-page="registerPage">新用户注册</button>
+          <button data-page="recordsPage">审核进度</button>
+        </footer>
+      </section>
+
+      <section class="page" id="registerPage">
+        <div class="top-actions between">
+          <button class="icon-btn" data-page="loginPage" aria-label="返回登录">‹</button>
+          <button class="language">注册申请</button>
+        </div>
+
+        <header class="page-head compact">
+          <h2>用户注册</h2>
+        </header>
+
+        <section class="form-card" aria-label="用户注册表单">
+          <div class="form-grid">
+            <label class="field">
+              <input id="regUsername" type="text" placeholder="用户名" />
+            </label>
+            <label class="field">
+              <input id="regPassword" type="password" placeholder="密码" />
+              <span class="eye-icon" aria-hidden="true"></span>
+            </label>
+            <label class="field">
+              <input id="regName" type="text" placeholder="姓名" />
+            </label>
+            <label class="field">
+              <input id="regPhone" type="tel" placeholder="手机号" />
+            </label>
+            <label class="field">
+              <input id="regEmail" type="email" placeholder="邮箱" />
+            </label>
+            <label class="field">
+              <input id="regIdNo" type="text" placeholder="证件号" />
+            </label>
+          </div>
+
+          <div class="bio-section">
+            <button class="bio-card" type="button" data-capture="指纹">
+              <span class="bio-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M7.6 11.2a4.4 4.4 0 0 1 8.8 0" />
+                  <path d="M6.2 15.4c.4-2.1.5-4.5 1.5-6.2A4.9 4.9 0 0 1 12 6.8a4.9 4.9 0 0 1 4.3 2.4c1 1.7 1.1 4.1 1.5 6.2" />
+                  <path d="M9.2 12.3c-.1 2-.5 4.2-1.4 5.9" />
+                  <path d="M12 10.2c1 0 1.8.8 1.8 1.8 0 2.7-.7 5.1-2 7.2" />
+                  <path d="M15.7 13.2c-.1 1.8-.4 3.5-1 5.1" />
+                  <path d="M4.5 11.5A7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 7.5 7.5" />
+                </svg>
+              </span>
+              <span>指纹</span>
+              <em>未采集</em>
+            </button>
+
+            <button class="bio-card" type="button" data-capture="人脸">
+              <span class="bio-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M8 4H6.5A2.5 2.5 0 0 0 4 6.5V8" />
+                  <path d="M16 4h1.5A2.5 2.5 0 0 1 20 6.5V8" />
+                  <path d="M8 20H6.5A2.5 2.5 0 0 1 4 17.5V16" />
+                  <path d="M16 20h1.5a2.5 2.5 0 0 0 2.5-2.5V16" />
+                  <path d="M8.8 10.2h.1" />
+                  <path d="M15.1 10.2h.1" />
+                  <path d="M9.2 15.3c1.7 1.4 3.9 1.4 5.6 0" />
+                  <path d="M12 10.8v2.4" />
+                </svg>
+              </span>
+              <span>人脸</span>
+              <em>未采集</em>
+            </button>
+
+            <button class="bio-card" type="button" data-capture="声纹">
+              <span class="bio-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M4 12h1.5" />
+                  <path d="M7.5 8v8" />
+                  <path d="M10.5 5.5v13" />
+                  <path d="M13.5 8v8" />
+                  <path d="M16.5 6.5v11" />
+                  <path d="M19.5 10v4" />
+                </svg>
+              </span>
+              <span>声纹</span>
+              <em>未采集</em>
+            </button>
+          </div>
+
+          <button class="submit-btn" id="submitRegister">提交申请</button>
+          <button class="subtle-btn" data-page="recordsPage">查看注册记录</button>
+          
+        </section>
+      </section>
+
+      <section class="page" id="recordsPage">
+        <div class="top-actions between">
+          <button class="icon-btn" data-page="loginPage" aria-label="返回登录">‹</button>
+          <button class="language">审核中心</button>
+        </div>
+
+        <header class="page-head compact">
+          <h2>注册记录</h2>
+        </header>
+
+        <div class="tab-card">
+          <button class="active" data-filter="all">全部记录</button>
+          <button data-filter="reviewing">审核中</button>
+        </div>
+
+        <section class="record-card" aria-label="注册记录列表">
+          <div class="record-list" id="recordList">
+            <article class="record" data-status="reviewing">
+              <div class="record-top">
+                <div>
+                  <strong>zhangsan</strong>
+                  <small>张三 · 138****8899 · 2026-05-29 09:30</small>
+                </div>
+                <span class="badge reviewing">审核中</span>
+              </div>
+              <div class="steps">
+                <span class="step done"></span>
+                <span class="step done"></span>
+                <span class="step"></span>
+              </div>
+              <p class="result-text">资料已提交，当前进入人工复核阶段，请等待审核结果。</p>
+            </article>
+
+            <article class="record" data-status="passed">
+              <div class="record-top">
+                <div>
+                  <strong>lisi</strong>
+                  <small>李四 · 186****1024 · 2026-05-28 16:12</small>
+                </div>
+                <span class="badge passed">已通过</span>
+              </div>
+              <div class="steps">
+                <span class="step done"></span>
+                <span class="step done"></span>
+                <span class="step done"></span>
+              </div>
+              <p class="result-text">审核通过，账号已开通，可返回登录页使用用户名和密码登录。</p>
+            </article>
+
+            <article class="record" data-status="rejected">
+              <div class="record-top">
+                <div>
+                  <strong>wangwu</strong>
+                  <small>王五 · 159****7712 · 2026-05-27 11:05</small>
+                </div>
+                <span class="badge rejected">未通过</span>
+              </div>
+              <div class="steps">
+                <span class="step done"></span>
+                <span class="step done"></span>
+                <span class="step"></span>
+              </div>
+              <p class="result-text">审核未通过，原因：证件号与姓名信息不一致，请修改后重新提交。</p>
+            </article>
+          </div>
+
+          <div class="empty-state" id="emptyState">
+            暂无符合条件的注册记录
+          </div>
+        </section>
+
+        <button class="subtle-btn" data-page="registerPage">继续提交注册申请</button>
+      </section>
+
+      <div class="toast" id="toast">已提交注册申请</div>
+    </section>
+  </main>
+
+  <script>
+    const pages = document.querySelectorAll(".page");
+    const navButtons = document.querySelectorAll("[data-page]");
+    const toast = document.getElementById("toast");
+    const submitRegister = document.getElementById("submitRegister");
+    const recordList = document.getElementById("recordList");
+    const emptyState = document.getElementById("emptyState");
+    const filterButtons = document.querySelectorAll("[data-filter]");
+    const bioCards = document.querySelectorAll(".bio-card");
+
+    function showPage(pageId) {
+      pages.forEach(page => page.classList.toggle("active", page.id === pageId));
+      document.querySelector(".screen").scrollTop = 0;
+    }
+
+    function showToast(text) {
+      toast.textContent = text;
+      toast.classList.add("show");
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+
+    navButtons.forEach(button => {
+      button.addEventListener("click", () => showPage(button.dataset.page));
+    });
+
+    bioCards.forEach(card => {
+      card.addEventListener("click", () => {
+        card.classList.toggle("is-captured");
+        card.querySelector("em").textContent = card.classList.contains("is-captured") ? "已采集" : "未采集";
+      });
+    });
+
+    submitRegister.addEventListener("click", () => {
+      const username = document.getElementById("regUsername").value.trim() || "new_user";
+      const name = document.getElementById("regName").value.trim() || "新用户";
+      const phone = document.getElementById("regPhone").value.trim() || "13800000000";
+      const maskedPhone = phone.length >= 7
+        ? phone.slice(0, 3) + "****" + phone.slice(-4)
+        : phone;
+
+      const capturedBio = [...document.querySelectorAll(".bio-card.is-captured")]
+        .map(card => card.dataset.capture)
+        .join("、") || "未采集生物信息";
+
+      const now = new Date();
+      const timeText = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+      const item = document.createElement("article");
+      item.className = "record";
+      item.dataset.status = "reviewing";
+      item.innerHTML = `
+        <div class="record-top">
+          <div>
+            <strong>${username}</strong>
+            <small>${name} · ${maskedPhone} · ${timeText}</small>
+          </div>
+          <span class="badge reviewing">审核中</span>
+        </div>
+        <div class="steps">
+          <span class="step done"></span>
+          <span class="step done"></span>
+          <span class="step"></span>
+        </div>
+        <p class="result-text">${capturedBio} · 等待审核</p>
+      `;
+      recordList.prepend(item);
+      showToast("已提交注册申请");
+      showPage("recordsPage");
+      updateFilter("all");
+    });
+
+    function updateFilter(status) {
+      filterButtons.forEach(btn => btn.classList.toggle("active", btn.dataset.filter === status));
+      const records = [...recordList.querySelectorAll(".record")];
+      let visibleCount = 0;
+
+      records.forEach(record => {
+        const visible = status === "all" || record.dataset.status === status;
+        record.style.display = visible ? "block" : "none";
+        if (visible) visibleCount += 1;
+      });
+
+      emptyState.classList.toggle("show", visibleCount === 0);
+    }
+
+    filterButtons.forEach(button => {
+      button.addEventListener("click", () => updateFilter(button.dataset.filter));
+    });
+  </script>
+</body>
+</html>

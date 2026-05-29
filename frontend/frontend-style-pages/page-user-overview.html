@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>前端风格文档集 - 用户页风格</title>
+  <link rel="stylesheet" href="./assets/base.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="doc-topbar" style="background:linear-gradient(135deg,var(--user-grad-start) 0%, var(--user-grad-end) 100%);">
+      <h1>用户页风格（静态示意）</h1>
+      <p>展示普通用户中心的蓝青主题与轻量信息结构。</p>
+    </header>
+
+    <main class="doc-main">
+      <nav class="doc-nav">
+        <a href="./index.html">总览</a>
+        <a href="./style-system.html">风格系统</a>
+        <a href="./page-login.html">登录页风格</a>
+        <a href="./page-admin-dashboard.html">管理员页风格</a>
+        <a class="active" href="./page-user-overview.html">用户页风格</a>
+      </nav>
+
+      <section class="layout-demo">
+        <div class="layout-header user">
+          <strong>面向多网融合的人机物电子认证服务软件管理后台</strong>
+          <span>普通用户 · user</span>
+        </div>
+
+        <div class="layout-body">
+          <aside class="layout-aside">
+            <div class="menu-item active">概览</div>
+            <div class="menu-item">数据信息查看</div>
+            <div class="menu-item">故障诊断</div>
+            <div class="menu-item">日志审计</div>
+          </aside>
+
+          <section class="layout-content">
+            <div class="breadcrumb">用户中心 / 概览</div>
+
+            <div class="stats-row">
+              <div class="stats-card g3"><h4>可访问数据资源</h4><div class="num">126</div></div>
+              <div class="stats-card g4"><h4>在线网络实体</h4><div class="num">38</div></div>
+              <div class="stats-card g2"><h4>待处理故障</h4><div class="num">6</div></div>
+              <div class="stats-card g1"><h4>今日日志条数</h4><div class="num">412</div></div>
+            </div>
+
+            <div class="content-row">
+              <article class="panel">
+                <div class="panel-header"><strong>最近访问的数据资源</strong><span style="color:#409eff;font-size:12px;">查看全部</span></div>
+                <p style="margin:0 0 8px;font-size:13px;color:#606266;">用户态页面强调“可访问资源”和“可执行动作”，弱化系统配置信息。</p>
+                <div class="fake-line" style="width:94%"></div>
+                <div class="fake-line" style="width:88%"></div>
+                <div class="fake-line" style="width:81%"></div>
+                <div class="fake-line" style="width:76%"></div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-header"><strong>系统状态</strong><span class="tag success">稳定</span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px;"><span>CPU</span><span class="tag warning">78%</span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px;"><span>内存</span><span class="tag success">52%</span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px;"><span>数据库</span><span class="tag info">在线</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;"><span>Redis</span><span class="tag info">在线</span></div>
+              </article>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="grid cols-2" style="margin-top: 16px;">
+        <article class="card">
+          <h3>页面风格要点</h3>
+          <ul class="clean">
+            <li>头部渐变改为亮色蓝青，语气更轻量、友好。</li>
+            <li>功能导航收敛为“查看/诊断/审计”三类核心操作。</li>
+            <li>卡片内容偏任务导向：资源访问记录 + 快速入口。</li>
+            <li>状态标记更强调可读性与即时反馈。</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h3>适用页面</h3>
+          <ul class="clean">
+            <li>用户中心首页</li>
+            <li>只读型报表与日志查看页面</li>
+            <li>个人侧诊断与运维观察页面</li>
+            <li>权限受限但需快速定位问题的页面</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

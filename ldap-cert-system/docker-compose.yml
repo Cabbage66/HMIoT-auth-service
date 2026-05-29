@@ -1,0 +1,40 @@
+services:
+  ldap:
+    image: osixia/openldap:1.5.0
+    container_name: cert-ldap
+    environment:
+      LDAP_ORGANISATION: "Example Org"
+      LDAP_DOMAIN: "example.org"
+      LDAP_ADMIN_PASSWORD: "admin"
+      LDAP_TLS: "false"
+    ports:
+      - "389:389"
+    volumes:
+      - ./data/ldap:/var/lib/ldap
+      - ./data/slapd:/etc/ldap/slapd.d
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+      args:
+        PIP_INDEX_URL: "https://pypi.tuna.tsinghua.edu.cn/simple"
+        PIP_TRUSTED_HOST: "pypi.tuna.tsinghua.edu.cn"
+    container_name: cert-app
+    depends_on:
+      - ldap
+    environment:
+      LDAP_URI: "ldap://ldap:389"
+      LDAP_BIND_DN: "cn=admin,dc=example,dc=org"
+      LDAP_BIND_PASSWORD: "admin"
+      LDAP_BASE_DN: "dc=example,dc=org"
+      LDAP_CERT_OU_DN: "ou=certs,dc=example,dc=org"
+      CERT_STORAGE_PATH: "/app/certs"
+      OPENSSL_CNF: "/app/openssl/openssl.cnf"
+      CA_KEY_PATH: "/app/certs/ca/ca.key.pem"
+      CA_CERT_PATH: "/app/certs/ca/ca.cert.pem"
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./certs:/app/certs
+      - ./openssl:/app/openssl
+      - ./scripts:/app/scripts

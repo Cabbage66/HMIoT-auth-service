@@ -1,0 +1,88 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: hmiot-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+  servlet:
+    multipart:
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:20MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:50MB}
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/hmiot_auth?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: ${REDIS_TIMEOUT:3s}
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.hmiot.hmiot_backend.module.*.entity
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:true}
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:true}
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+hmiot:
+  jwt:
+    issuer: ${JWT_ISSUER:hmiot-auth-service}
+    secret: ${JWT_SECRET:dev-only-hmiot-auth-service-secret-key-change-before-production}
+    expiration: ${JWT_EXPIRATION:2h}
+  ticket:
+    issuer-system: ${TICKET_ISSUER_SYSTEM:HMIOT_AUTH_SERVICE}
+    signing-secret: ${TICKET_SIGNING_SECRET:dev-only-hmiot-ticket-signing-secret-change-before-production}
+    expiration: ${TICKET_EXPIRATION:30m}
+    refresh-window: ${TICKET_REFRESH_WINDOW:10m}
+  integrations:
+    connect-timeout: ${INTEGRATION_CONNECT_TIMEOUT:3s}
+    read-timeout: ${INTEGRATION_READ_TIMEOUT:5s}
+    certificate-service-url: ${CERTIFICATE_SERVICE_URL:http://localhost:5000}
+    voiceprint-service-url: ${VOICEPRINT_SERVICE_URL:http://localhost:5003}
+    ueba-service-url: ${UEBA_SERVICE_URL:http://localhost:5004}
+    post-quantum-attribute-url: ${POST_QUANTUM_ATTRIBUTE_URL:mock://post-quantum-attribute}
+    dynamic-biometric-url: ${DYNAMIC_BIOMETRIC_URL:mock://dynamic-biometric}
+    lpwan-service-url: ${LPWAN_SERVICE_URL:mock://lpwan}
+    cross-domain-service-url: ${CROSS_DOMAIN_SERVICE_URL:mock://cross-domain}
+
+logging:
+  level:
+    root: INFO
+    com.hmiot.hmiot_backend: DEBUG
+    org.springframework.security: INFO
