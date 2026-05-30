@@ -51,5 +51,7 @@ data class TrustCheckResponse(
     val decision: String?,
     val action: String?,
     val failReason: String?,
-    val assessedAt: String?
+    val assessedAt: String?,
+    val requestLogPath: String?,
+    val resultLogPath: String?
 )

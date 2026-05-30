@@ -10,6 +10,7 @@ import com.hmiot.hmiot_backend.module.integration.service.ExternalIntegrationCal
 import com.hmiot.hmiot_backend.module.integration.service.PostQuantumAttributeMockAdapter;
 import com.hmiot.hmiot_backend.module.integration.service.PostQuantumAttributeMockAdapter.AttributeResult;
 import com.hmiot.hmiot_backend.module.user.dto.UserQueryRequest;
+import com.hmiot.hmiot_backend.module.user.dto.UserSelfUpdateRequest;
 import com.hmiot.hmiot_backend.module.user.dto.UserUpdateRequest;
 import com.hmiot.hmiot_backend.module.user.entity.UserAccount;
 import com.hmiot.hmiot_backend.module.user.entity.UserProfile;
@@ -19,6 +20,7 @@ import com.hmiot.hmiot_backend.module.user.vo.ExternalCallSummaryVO;
 import com.hmiot.hmiot_backend.module.user.vo.PageVO;
 import com.hmiot.hmiot_backend.module.user.vo.UserAttributeSyncResponse;
 import com.hmiot.hmiot_backend.module.user.vo.UserProfileVO;
+import com.hmiot.hmiot_backend.module.user.vo.UserSelfProfileVO;
 import com.hmiot.hmiot_backend.module.user.vo.UserVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,6 +70,11 @@ public class UserService {
         return toVO(user, findProfile(id));
     }
 
+    public UserSelfProfileVO getSelfProfile(Long userId) {
+        UserAccount user = findUser(userId);
+        return toSelfVO(user);
+    }
+
     @Transactional
     public UserVO updateUser(Long id, UserUpdateRequest request) {
         UserAccount user = findUser(id);
@@ -80,6 +87,17 @@ public class UserService {
         }
         userAccountMapper.updateById(user);
         return getUser(id);
+    }
+
+    @Transactional
+    public UserSelfProfileVO updateSelfProfile(Long userId, UserSelfUpdateRequest request) {
+        UserAccount user = findUser(userId);
+        user.setRealName(request.realName().trim());
+        user.setPhone(emptyToNull(request.phone()));
+        user.setEmail(emptyToNull(request.email()));
+        user.setIdCardNo(emptyToNull(request.idCardNo()));
+        userAccountMapper.updateById(user);
+        return toSelfVO(findUser(userId));
     }
 
     @Transactional
@@ -163,6 +181,17 @@ public class UserService {
         );
     }
 
+    private UserSelfProfileVO toSelfVO(UserAccount user) {
+        return new UserSelfProfileVO(
+                user.getId(),
+                user.getUsername(),
+                user.getRealName(),
+                user.getPhone(),
+                user.getEmail(),
+                user.getIdCardNo()
+        );
+    }
+
     private UserProfileVO toProfileVO(UserProfile profile) {
         if (profile == null) {
             return null;
@@ -184,5 +213,12 @@ public class UserService {
         } catch (JsonProcessingException exception) {
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "外部属性序列化失败");
         }
+    }
+
+    private String emptyToNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
     }
 }

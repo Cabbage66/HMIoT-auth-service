@@ -38,6 +38,13 @@ class AppPreferenceStore(private val context: Context) {
     private val trustBlockedKey = stringPreferencesKey("trust_blocked")
     private val trustBlockedReasonKey = stringPreferencesKey("trust_blocked_reason")
     private val trustBlockedAtKey = stringPreferencesKey("trust_blocked_at")
+    private val trustScoreKey = stringPreferencesKey("trust_score")
+    private val trustLevelKey = stringPreferencesKey("trust_level")
+    private val trustRiskLevelKey = stringPreferencesKey("trust_risk_level")
+    private val trustDecisionKey = stringPreferencesKey("trust_decision")
+    private val trustRequestIdKey = stringPreferencesKey("trust_request_id")
+    private val trustRequestLogPathKey = stringPreferencesKey("trust_request_log_path")
+    private val trustResultLogPathKey = stringPreferencesKey("trust_result_log_path")
     private val biometricPassHashKey = stringPreferencesKey("biometric_pass_hash")
     private val biometricPassSaltKey = stringPreferencesKey("biometric_pass_salt")
     private val biometricAuditLogsKey = stringPreferencesKey("biometric_audit_logs")
@@ -165,7 +172,14 @@ class AppPreferenceStore(private val context: Context) {
             TrustGuardState(
                 blocked = prefs[trustBlockedKey] == "1",
                 reason = prefs[trustBlockedReasonKey].orEmpty(),
-                updatedAt = prefs[trustBlockedAtKey].orEmpty()
+                updatedAt = prefs[trustBlockedAtKey].orEmpty(),
+                trustScore = prefs[trustScoreKey]?.toDoubleOrNull(),
+                trustLevel = prefs[trustLevelKey]?.toIntOrNull(),
+                riskLevel = prefs[trustRiskLevelKey],
+                decision = prefs[trustDecisionKey],
+                requestId = prefs[trustRequestIdKey],
+                requestLogPath = prefs[trustRequestLogPathKey],
+                resultLogPath = prefs[trustResultLogPathKey]
             )
         }
 
@@ -174,6 +188,13 @@ class AppPreferenceStore(private val context: Context) {
             prefs[trustBlockedKey] = if (state.blocked) "1" else "0"
             prefs[trustBlockedReasonKey] = state.reason
             prefs[trustBlockedAtKey] = state.updatedAt
+            if (state.trustScore == null) prefs.remove(trustScoreKey) else prefs[trustScoreKey] = state.trustScore.toString()
+            if (state.trustLevel == null) prefs.remove(trustLevelKey) else prefs[trustLevelKey] = state.trustLevel.toString()
+            if (state.riskLevel.isNullOrBlank()) prefs.remove(trustRiskLevelKey) else prefs[trustRiskLevelKey] = state.riskLevel
+            if (state.decision.isNullOrBlank()) prefs.remove(trustDecisionKey) else prefs[trustDecisionKey] = state.decision
+            if (state.requestId.isNullOrBlank()) prefs.remove(trustRequestIdKey) else prefs[trustRequestIdKey] = state.requestId
+            if (state.requestLogPath.isNullOrBlank()) prefs.remove(trustRequestLogPathKey) else prefs[trustRequestLogPathKey] = state.requestLogPath
+            if (state.resultLogPath.isNullOrBlank()) prefs.remove(trustResultLogPathKey) else prefs[trustResultLogPathKey] = state.resultLogPath
         }
     }
 
@@ -260,7 +281,14 @@ data class PendingTerminalEvent(
 data class TrustGuardState(
     val blocked: Boolean,
     val reason: String,
-    val updatedAt: String
+    val updatedAt: String,
+    val trustScore: Double? = null,
+    val trustLevel: Int? = null,
+    val riskLevel: String? = null,
+    val decision: String? = null,
+    val requestId: String? = null,
+    val requestLogPath: String? = null,
+    val resultLogPath: String? = null
 )
 
 data class BiometricAuditLog(

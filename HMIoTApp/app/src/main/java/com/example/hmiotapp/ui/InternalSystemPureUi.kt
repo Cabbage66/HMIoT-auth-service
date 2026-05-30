@@ -70,16 +70,45 @@ data class InternalIdentityUiData(
     val certificateNo: String = "CERT-202605290001"
 )
 
+data class TrustDashboardUiData(
+    val trustScore: Int = 88,
+    val trustLevelLabel: String = "高信任等级",
+    val trustLevelColor: Color = Color(0xFF087F5B),
+    val trustLevelBg: Color = Green.copy(alpha = 0.12f),
+    val riskLevel: String = "LOW",
+    val decision: String = "ALLOW",
+    val evaluatedAtText: String = "刚刚评估",
+    val summaryText: String = "当前设备、账号与生物特征状态稳定，可访问已授权应用。",
+    val deviceTrustText: String = "96%",
+    val behaviorText: String = "82%",
+    val requestIdText: String = "",
+    val resultLogPathText: String = ""
+)
+
+data class SecurityCategoryUiData(
+    val softwareBadge: String = "正常",
+    val softwareDesc: String = "应用签名、运行版本、运行环境均通过检测。",
+    val hardwareBadge: String = "可信",
+    val hardwareDesc: String = "设备指纹、传感器、安全芯片与本机标识可信。",
+    val softwareLines: List<String> = emptyList(),
+    val hardwareLines: List<String> = emptyList()
+)
+
 @Composable
 fun InternalSystemScreen(
     profile: InternalIdentityUiData = InternalIdentityUiData(),
+    appsCountLabel: String = "8 个",
+    trustDashboard: TrustDashboardUiData = TrustDashboardUiData(),
+    securityCategory: SecurityCategoryUiData = SecurityCategoryUiData(),
+    actionInfo: String? = null,
+    actionError: String? = null,
     onLogout: () -> Unit,
-    onGoAccessCenter: () -> Unit,
-    onGoTrustCenter: () -> Unit,
-    onGoReleaseCenter: () -> Unit,
-    onGoPolicyCenter: () -> Unit,
-    onGoTerminalMonitor: () -> Unit,
-    onGoBiometric: () -> Unit,
+    onAccessApp: (String) -> Unit,
+    onRunTrustCheck: () -> Unit,
+    onRunReleaseCheck: () -> Unit,
+    onSyncPolicy: () -> Unit,
+    onRunSecurityCheck: () -> Unit,
+    onBiometricTip: () -> Unit,
     onGoCertificateCenter: () -> Unit
 ) {
     var tab by remember { mutableStateOf("首页") }
@@ -89,24 +118,36 @@ fun InternalSystemScreen(
                 when (tab) {
                     "首页" -> HomePageUi(
                         username = profile.username,
+                        trustDashboard = trustDashboard,
+                        securityCategory = securityCategory,
+                        actionInfo = actionInfo,
+                        actionError = actionError,
                         onLogout = onLogout,
-                        onGoAccessCenter = onGoAccessCenter,
-                        onGoTerminalMonitor = onGoTerminalMonitor,
-                        onGoBiometric = onGoBiometric
+                        onAccessApp = onAccessApp,
+                        onRunSecurityCheck = onRunSecurityCheck,
+                        onBiometricTip = onBiometricTip
                     )
                     "应用" -> AppsPageUi(
-                        onGoAccessCenter = onGoAccessCenter,
-                        onGoPolicyCenter = onGoPolicyCenter,
-                        onGoReleaseCenter = onGoReleaseCenter
+                        appsCountLabel = appsCountLabel,
+                        actionInfo = actionInfo,
+                        actionError = actionError,
+                        onAccessApp = onAccessApp,
+                        onSyncPolicy = onSyncPolicy,
+                        onRunReleaseCheck = onRunReleaseCheck
                     )
                     "安全" -> SecurityPageUi(
-                        onGoTerminalMonitor = onGoTerminalMonitor,
-                        onGoTrustCenter = onGoTrustCenter
+                        securityCategory = securityCategory,
+                        actionInfo = actionInfo,
+                        actionError = actionError,
+                        onRunSecurityCheck = onRunSecurityCheck,
+                        onRunTrustCheck = onRunTrustCheck
                     )
                     else -> ProfilePageUi(
                         profile = profile,
-                        onGoReleaseCenter = onGoReleaseCenter,
-                        onGoBiometric = onGoBiometric,
+                        actionInfo = actionInfo,
+                        actionError = actionError,
+                        onRunReleaseCheck = onRunReleaseCheck,
+                        onBiometricTip = onBiometricTip,
                         onGoCertificateCenter = onGoCertificateCenter
                     )
                 }
@@ -264,10 +305,14 @@ private fun PageScaffold(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 private fun HomePageUi(
     username: String,
+    trustDashboard: TrustDashboardUiData,
+    securityCategory: SecurityCategoryUiData,
+    actionInfo: String?,
+    actionError: String?,
     onLogout: () -> Unit,
-    onGoAccessCenter: () -> Unit,
-    onGoTerminalMonitor: () -> Unit,
-    onGoBiometric: () -> Unit
+    onAccessApp: (String) -> Unit,
+    onRunSecurityCheck: () -> Unit,
+    onBiometricTip: () -> Unit
 ) {
     PageScaffold {
         TopTitleBar(
@@ -278,7 +323,8 @@ private fun HomePageUi(
             onClick = onLogout
         )
 
-        TrustDashboardCard()
+        TrustDashboardCard(trustDashboard)
+        ActionTip(actionInfo, actionError)
 
         SectionTitleBar(title = "当前系统安全情况", note = "2 项检测")
 
@@ -288,24 +334,24 @@ private fun HomePageUi(
         ) {
             SecurityStatusCard(
                 title = "软件状态",
-                description = "应用完整性、版本与运行环境状态良好。",
-                badge = "正常",
+                description = securityCategory.softwareDesc,
+                badge = securityCategory.softwareBadge,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
-                    .clickable { onGoTerminalMonitor() }
+                    .clickable { onRunSecurityCheck() }
             ) {
                 SoftwareIcon(Modifier.size(23.dp), AppBlueDark)
             }
 
             SecurityStatusCard(
                 title = "硬件状态",
-                description = "设备指纹、传感器与安全芯片检查通过。",
-                badge = "可信",
+                description = securityCategory.hardwareDesc,
+                badge = securityCategory.hardwareBadge,
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
-                    .clickable { onGoTerminalMonitor() }
+                    .clickable { onRunSecurityCheck() }
             ) {
                 HardwareIcon(Modifier.size(23.dp), Color(0xFF10B981))
             }
@@ -314,10 +360,10 @@ private fun HomePageUi(
         SectionTitleBar(title = "可访问应用", note = "内置应用")
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            AppItem("公文", AppBlueDark, Modifier.weight(1f), onClick = onGoAccessCenter) { DocumentIcon(Modifier.size(25.dp), AppBlueDark) }
-            AppItem("业务", Purple, Modifier.weight(1f), onClick = onGoAccessCenter) { BriefcaseIcon(Modifier.size(25.dp), Purple) }
-            AppItem("档案", Orange, Modifier.weight(1f), onClick = onGoAccessCenter) { FileIcon(Modifier.size(25.dp), Orange) }
-            AppItem("安全", Color(0xFF10B981), Modifier.weight(1f), onClick = onGoAccessCenter) { ShieldIcon(Modifier.size(25.dp), Color(0xFF10B981)) }
+            AppItem("公文", AppBlueDark, Modifier.weight(1f), onClick = { onAccessApp("公文") }) { DocumentIcon(Modifier.size(25.dp), AppBlueDark) }
+            AppItem("业务", Purple, Modifier.weight(1f), onClick = { onAccessApp("业务") }) { BriefcaseIcon(Modifier.size(25.dp), Purple) }
+            AppItem("档案", Orange, Modifier.weight(1f), onClick = { onAccessApp("档案") }) { FileIcon(Modifier.size(25.dp), Orange) }
+            AppItem("安全", Color(0xFF10B981), Modifier.weight(1f), onClick = { onAccessApp("安全") }) { ShieldIcon(Modifier.size(25.dp), Color(0xFF10B981)) }
         }
 
         SectionTitleBar(title = "生物特征信息补充", note = "可补充 / 更改")
@@ -330,7 +376,7 @@ private fun HomePageUi(
                 badgeType = BadgeType.Success,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
-                onClick = onGoBiometric
+                onClick = onBiometricTip
             ) {
                 FingerprintIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -344,7 +390,7 @@ private fun HomePageUi(
                 badgeType = BadgeType.Warning,
                 iconColor = Purple,
                 iconBg = Purple.copy(alpha = 0.10f),
-                onClick = onGoBiometric
+                onClick = onBiometricTip
             ) {
                 FaceIcon(Modifier.size(23.dp), Purple)
             }
@@ -358,7 +404,7 @@ private fun HomePageUi(
                 badgeType = BadgeType.Success,
                 iconColor = Orange,
                 iconBg = Orange.copy(alpha = 0.10f),
-                onClick = onGoBiometric
+                onClick = onBiometricTip
             ) {
                 VoiceIcon(Modifier.size(23.dp), Orange)
             }
@@ -370,14 +416,18 @@ private fun HomePageUi(
 
 @Composable
 private fun AppsPageUi(
-    onGoAccessCenter: () -> Unit,
-    onGoPolicyCenter: () -> Unit,
-    onGoReleaseCenter: () -> Unit
+    appsCountLabel: String,
+    actionInfo: String?,
+    actionError: String?,
+    onAccessApp: (String) -> Unit,
+    onSyncPolicy: () -> Unit,
+    onRunReleaseCheck: () -> Unit
 ) {
     PageScaffold {
-        TopTitleBar(title = "可访问应用", subtitle = "基于当前信任等级授权", buttonText = "8 个", onClick = onGoReleaseCenter)
+        TopTitleBar(title = "可访问应用", subtitle = "基于当前信任等级授权", buttonText = appsCountLabel, onClick = onRunReleaseCheck)
+        ActionTip(actionInfo, actionError)
 
-        AppGridAll(onGoAccessCenter)
+        AppGridAll(onAccessApp)
 
         Spacer(Modifier.height(18.dp))
 
@@ -389,7 +439,7 @@ private fun AppsPageUi(
                 badgeType = BadgeType.Success,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
-                onClick = onGoAccessCenter
+                onClick = onSyncPolicy
             ) {
                 PlusIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -403,7 +453,7 @@ private fun AppsPageUi(
                 badgeType = BadgeType.Success,
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
-                onClick = onGoPolicyCenter
+                onClick = onSyncPolicy
             ) {
                 ShieldIcon(Modifier.size(23.dp), Color(0xFF10B981))
             }
@@ -415,11 +465,15 @@ private fun AppsPageUi(
 
 @Composable
 private fun SecurityPageUi(
-    onGoTerminalMonitor: () -> Unit,
-    onGoTrustCenter: () -> Unit
+    securityCategory: SecurityCategoryUiData,
+    actionInfo: String?,
+    actionError: String?,
+    onRunSecurityCheck: () -> Unit,
+    onRunTrustCheck: () -> Unit
 ) {
     PageScaffold {
-        TopTitleBar(title = "安全状态", subtitle = "软件与硬件可信检测", buttonText = "检测", onClick = onGoTerminalMonitor)
+        TopTitleBar(title = "安全状态", subtitle = "软件与硬件可信检测", buttonText = "检测", onClick = onRunSecurityCheck)
+        ActionTip(actionInfo, actionError)
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -427,24 +481,24 @@ private fun SecurityPageUi(
         ) {
             SecurityStatusCard(
                 title = "软件状态",
-                description = "应用签名、运行版本、运行环境均通过检测。",
-                badge = "正常",
+                description = securityCategory.softwareDesc,
+                badge = securityCategory.softwareBadge,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
-                    .clickable { onGoTerminalMonitor() }
+                    .clickable { onRunSecurityCheck() }
             ) {
                 SoftwareIcon(Modifier.size(23.dp), AppBlueDark)
             }
 
             SecurityStatusCard(
                 title = "硬件状态",
-                description = "设备指纹、传感器、安全芯片与本机标识可信。",
-                badge = "可信",
+                description = securityCategory.hardwareDesc,
+                badge = securityCategory.hardwareBadge,
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
-                    .clickable { onGoTerminalMonitor() }
+                    .clickable { onRunSecurityCheck() }
             ) {
                 HardwareIcon(Modifier.size(23.dp), Color(0xFF10B981))
             }
@@ -455,12 +509,12 @@ private fun SecurityPageUi(
         GlassPanel {
             MenuRow(
                 title = "完整性检测",
-                subtitle = "未发现篡改风险",
-                badge = "通过",
+                subtitle = securityCategory.softwareLines.firstOrNull() ?: "未发现篡改风险",
+                badge = securityCategory.softwareBadge,
                 badgeType = BadgeType.Success,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
-                onClick = onGoTerminalMonitor
+                onClick = onRunSecurityCheck
             ) {
                 ShieldCheckIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -469,12 +523,12 @@ private fun SecurityPageUi(
 
             MenuRow(
                 title = "系统环境",
-                subtitle = "系统状态稳定，未检测到异常环境",
-                badge = "正常",
+                subtitle = securityCategory.hardwareLines.firstOrNull() ?: "系统状态稳定，未检测到异常环境",
+                badge = securityCategory.hardwareBadge,
                 badgeType = BadgeType.Success,
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
-                onClick = onGoTerminalMonitor
+                onClick = onRunSecurityCheck
             ) {
                 ClipboardIcon(Modifier.size(23.dp), Color(0xFF10B981))
             }
@@ -488,7 +542,7 @@ private fun SecurityPageUi(
                 badgeType = BadgeType.Warning,
                 iconColor = Orange,
                 iconBg = Orange.copy(alpha = 0.10f),
-                onClick = onGoTrustCenter
+                onClick = onRunTrustCheck
             ) {
                 WarningIcon(Modifier.size(23.dp), Orange)
             }
@@ -501,12 +555,15 @@ private fun SecurityPageUi(
 @Composable
 private fun ProfilePageUi(
     profile: InternalIdentityUiData,
-    onGoReleaseCenter: () -> Unit,
-    onGoBiometric: () -> Unit,
+    actionInfo: String?,
+    actionError: String?,
+    onRunReleaseCheck: () -> Unit,
+    onBiometricTip: () -> Unit,
     onGoCertificateCenter: () -> Unit
 ) {
     PageScaffold {
-        TopTitleBar(title = "我的身份", subtitle = "用户信息与身份凭据", buttonText = "编辑", onClick = onGoReleaseCenter)
+        TopTitleBar(title = "我的身份", subtitle = "用户信息与身份凭据", buttonText = "编辑", onClick = onRunReleaseCheck)
+        ActionTip(actionInfo, actionError)
 
         InfoPanel(profile)
 
@@ -520,7 +577,7 @@ private fun ProfilePageUi(
                 badgeType = BadgeType.Success,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
-                onClick = onGoBiometric
+                onClick = onBiometricTip
             ) {
                 FingerprintIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -534,7 +591,7 @@ private fun ProfilePageUi(
                 badgeType = BadgeType.Warning,
                 iconColor = Purple,
                 iconBg = Purple.copy(alpha = 0.10f),
-                onClick = onGoBiometric
+                onClick = onBiometricTip
             ) {
                 FaceIcon(Modifier.size(23.dp), Purple)
             }
@@ -548,7 +605,7 @@ private fun ProfilePageUi(
                 badgeType = BadgeType.Success,
                 iconColor = Orange,
                 iconBg = Orange.copy(alpha = 0.10f),
-                onClick = onGoBiometric
+                onClick = onBiometricTip
             ) {
                 VoiceIcon(Modifier.size(23.dp), Orange)
             }
@@ -617,7 +674,7 @@ private fun TopTitleBar(
 }
 
 @Composable
-private fun TrustDashboardCard() {
+private fun TrustDashboardCard(data: TrustDashboardUiData) {
     GlassPanel(padding = 20.dp) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -625,7 +682,7 @@ private fun TrustDashboardCard() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("信任监控仪表盘", color = TextMain, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            Text("刚刚评估", color = TextMuted, fontSize = 12.sp)
+            Text(data.evaluatedAtText, color = TextMuted, fontSize = 12.sp)
         }
 
         Spacer(Modifier.height(18.dp))
@@ -634,15 +691,15 @@ private fun TrustDashboardCard() {
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ScoreRing()
+            ScoreRing(data.trustScore)
 
             Spacer(Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                LevelBadge()
+                LevelBadge(data.trustLevelLabel, data.trustLevelColor, data.trustLevelBg)
                 Spacer(Modifier.height(11.dp))
                 Text(
-                    text = "当前设备、账号与生物特征状态稳定，可访问已授权应用。",
+                    text = data.summaryText,
                     color = Color(0xFF667085),
                     fontSize = 13.sp,
                     lineHeight = 20.sp
@@ -651,8 +708,16 @@ private fun TrustDashboardCard() {
                 Spacer(Modifier.height(14.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    MiniMetric("96%", "设备可信度", Modifier.weight(1f))
-                    MiniMetric("82%", "行为一致性", Modifier.weight(1f))
+                    MiniMetric(data.deviceTrustText, "设备可信度", Modifier.weight(1f))
+                    MiniMetric(data.behaviorText, "行为一致性", Modifier.weight(1f))
+                }
+                if (data.requestIdText.isNotBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text("请求ID: ${data.requestIdText}", color = TextMuted, fontSize = 11.sp)
+                }
+                if (data.resultLogPathText.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text("日志: ${data.resultLogPathText}", color = TextMuted, fontSize = 11.sp)
                 }
             }
         }
@@ -660,7 +725,7 @@ private fun TrustDashboardCard() {
 }
 
 @Composable
-private fun ScoreRing() {
+private fun ScoreRing(score: Int) {
     Box(
         modifier = Modifier
             .size(138.dp)
@@ -690,7 +755,7 @@ private fun ScoreRing() {
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("88", color = Color(0xFF101827), fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
+                Text(score.toString(), color = Color(0xFF101827), fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
                 Spacer(Modifier.height(4.dp))
                 Text("信任分", color = Color(0xFF8C94A4), fontSize = 12.sp)
             }
@@ -699,11 +764,11 @@ private fun ScoreRing() {
 }
 
 @Composable
-private fun LevelBadge() {
+private fun LevelBadge(label: String, labelColor: Color, bgColor: Color) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(Green.copy(alpha = 0.12f))
+            .background(bgColor)
             .padding(horizontal = 11.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -712,10 +777,33 @@ private fun LevelBadge() {
             modifier = Modifier
                 .size(7.dp)
                 .clip(CircleShape)
-                .background(Green)
+                .background(labelColor)
         )
-        Text("高信任等级", color = Color(0xFF087F5B), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = labelColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
+}
+
+@Composable
+private fun ActionTip(info: String?, error: String?) {
+    if (info.isNullOrBlank() && error.isNullOrBlank()) return
+    val text = error ?: info.orEmpty()
+    val isError = !error.isNullOrBlank()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (isError) Color(0xFFFEE2E2) else Color(0xFFECFDF5))
+            .border(1.dp, if (isError) Color(0xFFFCA5A5) else Color(0xFF86EFAC), RoundedCornerShape(14.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = text,
+            color = if (isError) Color(0xFFB91C1C) else Color(0xFF065F46),
+            fontSize = 12.sp,
+            lineHeight = 17.sp
+        )
+    }
+    Spacer(Modifier.height(10.dp))
 }
 
 @Composable
@@ -788,20 +876,20 @@ private fun SecurityStatusCard(
 }
 
 @Composable
-private fun AppGridAll(onAppClick: () -> Unit) {
+private fun AppGridAll(onAppClick: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            AppItem("公文", AppBlueDark, Modifier.weight(1f), onClick = onAppClick) { DocumentIcon(Modifier.size(25.dp), AppBlueDark) }
-            AppItem("业务", Purple, Modifier.weight(1f), onClick = onAppClick) { BriefcaseIcon(Modifier.size(25.dp), Purple) }
-            AppItem("档案", Orange, Modifier.weight(1f), onClick = onAppClick) { FileIcon(Modifier.size(25.dp), Orange) }
-            AppItem("安全", Color(0xFF10B981), Modifier.weight(1f), onClick = onAppClick) { ShieldIcon(Modifier.size(25.dp), Color(0xFF10B981)) }
+            AppItem("公文", AppBlueDark, Modifier.weight(1f), onClick = { onAppClick("公文") }) { DocumentIcon(Modifier.size(25.dp), AppBlueDark) }
+            AppItem("业务", Purple, Modifier.weight(1f), onClick = { onAppClick("业务") }) { BriefcaseIcon(Modifier.size(25.dp), Purple) }
+            AppItem("档案", Orange, Modifier.weight(1f), onClick = { onAppClick("档案") }) { FileIcon(Modifier.size(25.dp), Orange) }
+            AppItem("安全", Color(0xFF10B981), Modifier.weight(1f), onClick = { onAppClick("安全") }) { ShieldIcon(Modifier.size(25.dp), Color(0xFF10B981)) }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            AppItem("消息", Color(0xFF06B6D4), Modifier.weight(1f), onClick = onAppClick) { MessageIcon(Modifier.size(25.dp), Color(0xFF06B6D4)) }
-            AppItem("审批", Color(0xFF64748B), Modifier.weight(1f), onClick = onAppClick) { ClipboardIcon(Modifier.size(25.dp), Color(0xFF64748B)) }
-            AppItem("协同", Color(0xFFEC4899), Modifier.weight(1f), onClick = onAppClick) { SyncIcon(Modifier.size(25.dp), Color(0xFFEC4899)) }
-            AppItem("日志", Color(0xFF0F766E), Modifier.weight(1f), onClick = onAppClick) { ClockIcon(Modifier.size(25.dp), Color(0xFF0F766E)) }
+            AppItem("消息", Color(0xFF06B6D4), Modifier.weight(1f), onClick = { onAppClick("消息") }) { MessageIcon(Modifier.size(25.dp), Color(0xFF06B6D4)) }
+            AppItem("审批", Color(0xFF64748B), Modifier.weight(1f), onClick = { onAppClick("审批") }) { ClipboardIcon(Modifier.size(25.dp), Color(0xFF64748B)) }
+            AppItem("协同", Color(0xFFEC4899), Modifier.weight(1f), onClick = { onAppClick("协同") }) { SyncIcon(Modifier.size(25.dp), Color(0xFFEC4899)) }
+            AppItem("日志", Color(0xFF0F766E), Modifier.weight(1f), onClick = { onAppClick("日志") }) { ClockIcon(Modifier.size(25.dp), Color(0xFF0F766E)) }
         }
     }
 }
@@ -1306,12 +1394,12 @@ private fun CertificateIcon(modifier: Modifier = Modifier, color: Color) {
 private fun HomePreview() {
     InternalSystemScreen(
         onLogout = {},
-        onGoAccessCenter = {},
-        onGoTrustCenter = {},
-        onGoReleaseCenter = {},
-        onGoPolicyCenter = {},
-        onGoTerminalMonitor = {},
-        onGoBiometric = {},
+        onAccessApp = {},
+        onRunTrustCheck = {},
+        onRunReleaseCheck = {},
+        onSyncPolicy = {},
+        onRunSecurityCheck = {},
+        onBiometricTip = {},
         onGoCertificateCenter = {}
     )
 }
@@ -1321,12 +1409,12 @@ private fun HomePreview() {
 private fun AppsPreview() {
     InternalSystemScreen(
         onLogout = {},
-        onGoAccessCenter = {},
-        onGoTrustCenter = {},
-        onGoReleaseCenter = {},
-        onGoPolicyCenter = {},
-        onGoTerminalMonitor = {},
-        onGoBiometric = {},
+        onAccessApp = {},
+        onRunTrustCheck = {},
+        onRunReleaseCheck = {},
+        onSyncPolicy = {},
+        onRunSecurityCheck = {},
+        onBiometricTip = {},
         onGoCertificateCenter = {}
     )
 }
@@ -1336,12 +1424,12 @@ private fun AppsPreview() {
 private fun SecurityPreview() {
     InternalSystemScreen(
         onLogout = {},
-        onGoAccessCenter = {},
-        onGoTrustCenter = {},
-        onGoReleaseCenter = {},
-        onGoPolicyCenter = {},
-        onGoTerminalMonitor = {},
-        onGoBiometric = {},
+        onAccessApp = {},
+        onRunTrustCheck = {},
+        onRunReleaseCheck = {},
+        onSyncPolicy = {},
+        onRunSecurityCheck = {},
+        onBiometricTip = {},
         onGoCertificateCenter = {}
     )
 }
@@ -1351,12 +1439,12 @@ private fun SecurityPreview() {
 private fun ProfilePreview() {
     InternalSystemScreen(
         onLogout = {},
-        onGoAccessCenter = {},
-        onGoTrustCenter = {},
-        onGoReleaseCenter = {},
-        onGoPolicyCenter = {},
-        onGoTerminalMonitor = {},
-        onGoBiometric = {},
+        onAccessApp = {},
+        onRunTrustCheck = {},
+        onRunReleaseCheck = {},
+        onSyncPolicy = {},
+        onRunSecurityCheck = {},
+        onBiometricTip = {},
         onGoCertificateCenter = {}
     )
 }

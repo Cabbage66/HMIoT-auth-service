@@ -15,11 +15,24 @@ class TrustGuardRepository(
     val state: Flow<TrustGuardState> = store.trustGuardState
 
     suspend fun evaluateAndUpdate(): ApiResult<TrustGuardState> {
+        terminalMonitorRepository.collectAndQueue()
+        terminalMonitorRepository.flushQueue()
         return when (val result = terminalMonitorRepository.trustCheck()) {
             is ApiResult.Success -> {
                 val blocked = !result.data.trusted
                 val reason = if (blocked) (result.data.failReason ?: "信任评估未通过") else "信任评估通过"
-                val state = TrustGuardState(blocked = blocked, reason = reason, updatedAt = LocalDateTime.now().toString())
+                val state = TrustGuardState(
+                    blocked = blocked,
+                    reason = reason,
+                    updatedAt = LocalDateTime.now().toString(),
+                    trustScore = result.data.trustScore,
+                    trustLevel = result.data.trustLevel,
+                    riskLevel = result.data.riskLevel,
+                    decision = result.data.decision,
+                    requestId = result.data.requestId,
+                    requestLogPath = result.data.requestLogPath,
+                    resultLogPath = result.data.resultLogPath
+                )
                 store.updateTrustGuardState(state)
                 ApiResult.Success(state, null)
             }
@@ -28,7 +41,14 @@ class TrustGuardRepository(
     }
 
     suspend fun clearBlock(reason: String = "手动解除阻断") {
-        store.updateTrustGuardState(TrustGuardState(false, reason, LocalDateTime.now().toString()))
+        val current = currentState()
+        store.updateTrustGuardState(
+            current.copy(
+                blocked = false,
+                reason = reason,
+                updatedAt = LocalDateTime.now().toString()
+            )
+        )
     }
 
     suspend fun currentState(): TrustGuardState = state.first()
