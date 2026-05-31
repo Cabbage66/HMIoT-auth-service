@@ -8,11 +8,14 @@ interface AuthApi {
     @POST("auth/password/login")
     suspend fun passwordLogin(@Body request: PasswordLoginRequest): ApiEnvelope<LoginResponse>
 
+    @POST("auth/fingerprint/challenge")
+    suspend fun fingerprintChallenge(@Body request: FingerprintChallengeRequest): ApiEnvelope<FingerprintChallengeResponse>
+
     @POST("auth/fingerprint/login")
-    suspend fun fingerprintLogin(@Body request: BiometricLoginRequest): ApiEnvelope<LoginResponse>
+    suspend fun fingerprintLogin(@Body request: FingerprintLoginRequest): ApiEnvelope<LoginResponse>
 
     @POST("auth/face/login")
-    suspend fun faceLogin(@Body request: BiometricLoginRequest): ApiEnvelope<LoginResponse>
+    suspend fun faceLogin(@Body request: FaceLoginRequest): ApiEnvelope<LoginResponse>
 
     @POST("auth/voiceprint/login")
     suspend fun voiceprintLogin(@Body request: VoiceprintLoginRequest): ApiEnvelope<LoginResponse>
@@ -61,6 +64,47 @@ data class BiometricLoginRequest(
     val metadata: String
 )
 
+data class FingerprintChallengeRequest(
+    val username: String,
+    val terminalCode: String,
+    val keyId: String,
+    val deviceFingerprint: String,
+    val clientType: String,
+    val clientVersion: String,
+    val osName: String,
+    val osVersion: String,
+    val userAgent: String,
+    val metadata: String,
+    val dynamicBiometricAuthRecordId: Long? = null
+)
+
+data class FingerprintChallengeResponse(
+    val sessionId: String,
+    val challengeId: String,
+    val challenge: String,
+    val expiresInSeconds: Int,
+    val expiresAt: String,
+    val keyId: String
+)
+
+data class FingerprintLoginRequest(
+    val username: String,
+    val sessionId: String,
+    val challengeId: String,
+    val keyId: String,
+    val signatureBase64: String,
+    val signAlgorithm: String,
+    val terminalCode: String,
+    val deviceFingerprint: String,
+    val clientType: String,
+    val clientVersion: String,
+    val osName: String,
+    val osVersion: String,
+    val userAgent: String,
+    val metadata: String,
+    val dynamicBiometricAuthRecordId: Long? = null
+)
+
 data class VoiceprintLoginRequest(
     val username: String,
     val audioBase64: String,
@@ -74,6 +118,21 @@ data class VoiceprintLoginRequest(
     val osVersion: String,
     val userAgent: String,
     val metadata: String
+)
+
+data class FaceLoginRequest(
+    val username: String,
+    val imageBase64: String,
+    val imageFormat: String,
+    val terminalCode: String,
+    val deviceFingerprint: String,
+    val clientType: String,
+    val clientVersion: String,
+    val osName: String,
+    val osVersion: String,
+    val userAgent: String,
+    val metadata: String,
+    val dynamicBiometricAuthRecordId: Long? = null
 )
 
 data class VerifyRequest(

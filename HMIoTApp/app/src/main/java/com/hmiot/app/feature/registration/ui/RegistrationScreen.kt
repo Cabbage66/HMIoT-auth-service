@@ -83,7 +83,6 @@ fun RegistrationScreen(
     var face by remember { mutableStateOf(false) }
     var voice by remember { mutableStateOf(false) }
     var faceBase64 by remember { mutableStateOf("") }
-    var voiceBase64 by remember { mutableStateOf("") }
     var bioInfo by remember { mutableStateOf<String?>(null) }
     var bioError by remember { mutableStateOf<String?>(null) }
 
@@ -92,6 +91,7 @@ fun RegistrationScreen(
             bioError = "人脸采集失败：未获取到图像"
         } else {
             faceBase64 = bitmap.toJpegBase64()
+            vm.updateFaceImage(faceBase64)
             face = true
             bioInfo = "人脸采集完成"
             bioError = null
@@ -105,7 +105,7 @@ fun RegistrationScreen(
         scope.launch {
             runCatching { VoiceSampleCollector().collectBase64Wav(3) }
                 .onSuccess {
-                    voiceBase64 = it
+                    vm.updateVoiceprintAudio(it)
                     voice = true
                     bioInfo = "声纹采集完成"
                     bioError = null

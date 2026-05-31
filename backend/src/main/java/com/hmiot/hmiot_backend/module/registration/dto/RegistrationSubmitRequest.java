@@ -20,6 +20,13 @@ public record RegistrationSubmitRequest(
         @Email(message = "邮箱格式不正确")
         String email,
         @Size(max = 64, message = "证件号长度不能超过64")
-        String idCardNo
+        String idCardNo,
+        @Size(max = 1500000, message = "声纹样本长度超限")
+        String voiceprintAudioBase64,
+        String voiceprintAudioFormat,
+        Integer voiceprintSampleRate,
+        @Size(max = 6000000, message = "人脸图像数据超限")
+        String faceImageBase64,
+        String faceImageFormat
 ) {
 }

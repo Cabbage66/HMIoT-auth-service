@@ -34,7 +34,8 @@ public class RegistrationController {
         RegistrationSubmitResponse response = registrationService.submit(request);
         auditLogService.recordSystemOperation("USER_REGISTRATION_SUBMIT", "REGISTRATION_REQUEST", String.valueOf(response.registrationId()), servletRequest.getRemoteAddr(), null, Map.of(
                 "username", response.username(),
-                "status", response.status()
+                "status", response.status(),
+                "voiceprintSubmitted", request.voiceprintAudioBase64() == null || request.voiceprintAudioBase64().isBlank() ? "0" : "1"
         ));
         return ApiResponse.success(response);
     }

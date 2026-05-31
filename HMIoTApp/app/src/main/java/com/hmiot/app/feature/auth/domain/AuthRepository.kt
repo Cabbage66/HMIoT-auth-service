@@ -5,9 +5,12 @@ import com.hmiot.app.core.session.SessionHolder
 import com.hmiot.app.core.session.SessionManager
 import com.hmiot.app.core.storage.datastore.LocalSession
 import com.hmiot.app.feature.auth.data.AuthApi
-import com.hmiot.app.feature.auth.data.BiometricLoginRequest
 import com.hmiot.app.feature.auth.data.ChallengeRequest
 import com.hmiot.app.feature.auth.data.ChallengeResponse
+import com.hmiot.app.feature.auth.data.FaceLoginRequest
+import com.hmiot.app.feature.auth.data.FingerprintChallengeRequest
+import com.hmiot.app.feature.auth.data.FingerprintChallengeResponse
+import com.hmiot.app.feature.auth.data.FingerprintLoginRequest
 import com.hmiot.app.feature.auth.data.LoginResponse
 import com.hmiot.app.feature.auth.data.PasswordLoginRequest
 import com.hmiot.app.feature.auth.data.TerminalEventApi
@@ -81,7 +84,11 @@ class AuthRepository(
         return result
     }
 
-    suspend fun loginByFingerprint(request: BiometricLoginRequest): ApiResult<LoginResponse> {
+    suspend fun requestFingerprintChallenge(request: FingerprintChallengeRequest): ApiResult<FingerprintChallengeResponse> {
+        return runApi { authApi.fingerprintChallenge(request) }
+    }
+
+    suspend fun loginByFingerprint(request: FingerprintLoginRequest): ApiResult<LoginResponse> {
         val result = runApi { authApi.fingerprintLogin(request) }
         if (result is ApiResult.Success) {
             persistSession(result.data)
@@ -89,7 +96,7 @@ class AuthRepository(
         return result
     }
 
-    suspend fun loginByFace(request: BiometricLoginRequest): ApiResult<LoginResponse> {
+    suspend fun loginByFace(request: FaceLoginRequest): ApiResult<LoginResponse> {
         val result = runApi { authApi.faceLogin(request) }
         if (result is ApiResult.Success) {
             persistSession(result.data)

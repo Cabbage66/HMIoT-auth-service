@@ -32,13 +32,39 @@ export VOICEPRINT_THRESHOLD=0.58
 uvicorn app:app --host 0.0.0.0 --port 5003 --reload
 ```
 
-健康检查：
+健康检查（后端对接使用）：
 
 ```bash
 curl http://127.0.0.1:5003/health
 ```
 
-本地验证接口：
+后端协议-声纹注册：
+
+```bash
+curl -X POST http://127.0.0.1:5003/voiceprint/enroll \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": 1001,
+    "username": "zhangsan",
+    "audio_base64": "<wav-base64>",
+    "metadata": {"scene":"REGISTRATION_SUBMIT"}
+  }'
+```
+
+后端协议-声纹验证：
+
+```bash
+curl -X POST http://127.0.0.1:5003/voiceprint/verify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template_ref":"<from-enroll>",
+    "template_digest":"<from-enroll>",
+    "audio_base64":"<wav-base64>",
+    "threshold":0.58
+  }'
+```
+
+兼容接口（保留）：
 
 ```bash
 curl -X POST http://127.0.0.1:5003/verify \

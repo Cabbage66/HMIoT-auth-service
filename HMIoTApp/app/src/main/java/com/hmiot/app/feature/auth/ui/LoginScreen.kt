@@ -4,12 +4,9 @@ import android.Manifest
 import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.Bitmap
-import android.media.FaceDetector
+import android.util.Base64
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.biometric.BiometricManager
-import androidx.biometric.BiometricPrompt
-import androidx.core.content.ContextCompat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,8 +58,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.fragment.app.FragmentActivity
 import com.hmiot.app.feature.auth.domain.LoginMode
+import com.hmiot.app.feature.biometric.domain.FingerprintCryptoManager
+import com.hmiot.app.feature.biometric.domain.FingerprintKeyId
 import com.hmiot.app.feature.biometric.domain.VoiceSampleCollector
 import com.hmiot.app.ui.components.StatusBlock
+import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.launch
 
 private val AppBlue = Color(0xFF12A8FF)
@@ -84,6 +84,7 @@ fun LoginScreen(
     val state by vm.state.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
+    val fingerprintCryptoManager = remember { FingerprintCryptoManager() }
     var passwordVisible by remember { mutableStateOf(false) }
     var bioInfo by remember { mutableStateOf<String?>(null) }
     var bioError by remember { mutableStateOf<String?>(null) }
@@ -93,14 +94,9 @@ fun LoginScreen(
             bioError = "人脸识别失败：未获取到图像"
             return@rememberLauncherForActivityResult
         }
-        val faceCount = detectFaces(bitmap)
-        if (faceCount > 0) {
-            bioInfo = "人脸识别成功（检测到${faceCount}张人脸），正在登录..."
-            bioError = null
-            vm.faceLogin(onLogin)
-        } else {
-            bioError = "人脸识别失败：未检测到人脸"
-        }
+        bioInfo = "人脸采集成功，正在远端比对..."
+        bioError = null
+        vm.faceLogin(bitmap.toJpegBase64(), onLogin)
     }
     val audioPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) {
@@ -180,17 +176,42 @@ fun LoginScreen(
             Spacer(Modifier.height(15.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LoginMethodItem("指纹", Modifier.weight(1f), onClick = {
-                    runBiometricPrompt(
-                        context = context,
-                        onSuccess = {
-                            bioInfo = "指纹识别成功，正在登录..."
-                            bioError = null
-                            vm.fingerprintLogin(onLogin)
-                        },
-                        onFailure = { msg ->
-                            bioError = msg
+                    val username = state.username.trim()
+                    if (username.isBlank()) {
+                        bioError = "请先输入用户名后再使用指纹登录"
+                        return@LoginMethodItem
+                    }
+                    val activity = context.findFragmentActivity()
+                    if (activity == null) {
+                        bioError = "当前页面上下文不支持指纹认证"
+                        return@LoginMethodItem
+                    }
+                    val keyId = FingerprintKeyId.fromUsername(username)
+                    vm.requestFingerprintChallenge(keyId) { challenge ->
+                        scope.launch {
+                            val signResult = fingerprintCryptoManager.signChallengeWithBiometric(
+                                activity = activity,
+                                keyId = challenge.keyId,
+                                challenge = challenge.challenge,
+                                title = "指纹登录",
+                                subtitle = "请验证指纹完成登录签名"
+                            )
+                            signResult
+                                .onSuccess { proof ->
+                                    bioInfo = "指纹验证成功，正在登录..."
+                                    bioError = null
+                                    vm.fingerprintLoginWithSignature(
+                                        challenge = challenge,
+                                        signatureBase64 = proof.signatureBase64,
+                                        signAlgorithm = proof.signAlgorithm,
+                                        onSuccess = onLogin
+                                    )
+                                }
+                                .onFailure { ex ->
+                                    bioError = ex.message ?: "指纹签名失败"
+                                }
                         }
-                    )
+                    }
                 }) { FingerprintIcon(Modifier.size(25.dp), Color(0xFF2F80ED)) }
                 LoginMethodItem("人脸", Modifier.weight(1f), onClick = {
                     takePhotoLauncher.launch(null)
@@ -286,46 +307,14 @@ private fun LoginMethodItem(title: String, modifier: Modifier = Modifier, onClic
 @Composable private fun CertificateIcon(modifier: Modifier, color: Color) { Canvas(modifier) { drawRoundRect(color, style = Stroke(width = 1.8.dp.toPx())); drawLine(color, androidx.compose.ui.geometry.Offset(size.width*.25f, size.height*.35f), androidx.compose.ui.geometry.Offset(size.width*.75f, size.height*.35f), 1.8.dp.toPx(), cap = StrokeCap.Round); drawLine(color, androidx.compose.ui.geometry.Offset(size.width*.25f, size.height*.55f), androidx.compose.ui.geometry.Offset(size.width*.6f, size.height*.55f), 1.8.dp.toPx(), cap = StrokeCap.Round) } }
 @Composable private fun EyeOffIcon(modifier: Modifier, color: Color) { Canvas(modifier) { drawOval(color, style = Stroke(width = 1.8.dp.toPx(), cap = StrokeCap.Round)); drawLine(color, androidx.compose.ui.geometry.Offset(size.width*.12f, size.height*.82f), androidx.compose.ui.geometry.Offset(size.width*.88f, size.height*.18f), 1.8.dp.toPx(), cap = StrokeCap.Round) } }
 
-private fun detectFaces(bitmap: Bitmap): Int {
-    val rgb565 = bitmap.copy(Bitmap.Config.RGB_565, true)
-    val maxFaces = 3
-    val faces = arrayOfNulls<FaceDetector.Face>(maxFaces)
-    return runCatching {
-        FaceDetector(rgb565.width, rgb565.height, maxFaces).findFaces(rgb565, faces)
-    }.getOrDefault(0)
-}
-
-private fun runBiometricPrompt(
-    context: Context,
-    onSuccess: () -> Unit,
-    onFailure: (String) -> Unit
-) {
-    val activity = context.findFragmentActivity() ?: run {
-        onFailure("当前页面上下文不支持生物识别")
-        return
-    }
-    val capability = BiometricManager.from(activity).canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK)
-    if (capability != BiometricManager.BIOMETRIC_SUCCESS) {
-        onFailure("设备未配置可用生物识别，code=$capability")
-        return
-    }
-    val prompt = BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), object : BiometricPrompt.AuthenticationCallback() {
-        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) = onSuccess()
-        override fun onAuthenticationError(errorCode: Int, errString: CharSequence) = onFailure("生物识别错误($errorCode): $errString")
-        override fun onAuthenticationFailed() = onFailure("生物识别失败")
-    })
-    prompt.authenticate(
-        BiometricPrompt.PromptInfo.Builder()
-            .setTitle("生物识别登录")
-            .setSubtitle("请使用系统指纹/人脸识别")
-            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)
-            .setNegativeButtonText("取消")
-            .build()
-    )
-}
-
 private tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (this) {
     is FragmentActivity -> this
     is ContextWrapper -> baseContext.findFragmentActivity()
     else -> null
+}
+
+private fun Bitmap.toJpegBase64(): String {
+    val output = ByteArrayOutputStream()
+    compress(Bitmap.CompressFormat.JPEG, 90, output)
+    return Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
 }

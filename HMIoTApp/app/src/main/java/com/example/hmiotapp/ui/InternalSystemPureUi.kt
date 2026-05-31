@@ -26,6 +26,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +36,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -73,14 +78,25 @@ data class InternalIdentityUiData(
 @Composable
 fun InternalSystemScreen(
     profile: InternalIdentityUiData = InternalIdentityUiData(),
+    appsCountLabel: String = "8 个",
+    actionInfo: String? = null,
+    actionError: String? = null,
+    profileEditDialogVisible: Boolean = false,
+    profileEditSaving: Boolean = false,
+    profileEditError: String? = null,
     onLogout: () -> Unit,
-    onGoAccessCenter: () -> Unit,
-    onGoTrustCenter: () -> Unit,
-    onGoReleaseCenter: () -> Unit,
-    onGoPolicyCenter: () -> Unit,
-    onGoTerminalMonitor: () -> Unit,
-    onGoBiometric: () -> Unit,
-    onGoCertificateCenter: () -> Unit
+    onAccessApp: (String) -> Unit,
+    onRunTrustCheck: () -> Unit,
+    onRunReleaseCheck: () -> Unit,
+    onSyncPolicy: () -> Unit,
+    onRunSecurityCheck: () -> Unit,
+    onManageFingerprint: () -> Unit,
+    onManageFace: () -> Unit,
+    onManageVoiceprint: () -> Unit,
+    onGoCertificateCenter: () -> Unit,
+    onOpenProfileEdit: () -> Unit = {},
+    onDismissProfileEdit: () -> Unit = {},
+    onSubmitProfileEdit: (realName: String, phone: String, email: String, idCardNo: String) -> Unit = { _, _, _, _ -> }
 ) {
     var tab by remember { mutableStateOf("首页") }
     InternalSystemPureUiApp {
@@ -89,30 +105,52 @@ fun InternalSystemScreen(
                 when (tab) {
                     "首页" -> HomePageUi(
                         username = profile.username,
+                        actionInfo = actionInfo,
+                        actionError = actionError,
                         onLogout = onLogout,
-                        onGoAccessCenter = onGoAccessCenter,
-                        onGoTerminalMonitor = onGoTerminalMonitor,
-                        onGoBiometric = onGoBiometric
+                        onAccessApp = onAccessApp,
+                        onRunSecurityCheck = onRunSecurityCheck,
+                        onManageFingerprint = onManageFingerprint,
+                        onManageFace = onManageFace,
+                        onManageVoiceprint = onManageVoiceprint
                     )
                     "应用" -> AppsPageUi(
-                        onGoAccessCenter = onGoAccessCenter,
-                        onGoPolicyCenter = onGoPolicyCenter,
-                        onGoReleaseCenter = onGoReleaseCenter
+                        appsCountLabel = appsCountLabel,
+                        actionInfo = actionInfo,
+                        actionError = actionError,
+                        onAccessApp = onAccessApp,
+                        onSyncPolicy = onSyncPolicy,
+                        onRunReleaseCheck = onRunReleaseCheck
                     )
                     "安全" -> SecurityPageUi(
-                        onGoTerminalMonitor = onGoTerminalMonitor,
-                        onGoTrustCenter = onGoTrustCenter
+                        actionInfo = actionInfo,
+                        actionError = actionError,
+                        onRunSecurityCheck = onRunSecurityCheck,
+                        onRunTrustCheck = onRunTrustCheck
                     )
                     else -> ProfilePageUi(
                         profile = profile,
-                        onGoReleaseCenter = onGoReleaseCenter,
-                        onGoBiometric = onGoBiometric,
+                        actionInfo = actionInfo,
+                        actionError = actionError,
+                        onOpenProfileEdit = onOpenProfileEdit,
+                        onManageFingerprint = onManageFingerprint,
+                        onManageFace = onManageFace,
+                        onManageVoiceprint = onManageVoiceprint,
                         onGoCertificateCenter = onGoCertificateCenter
                     )
                 }
             }
             BottomNavigationUi(selectedTab = tab, onTabChange = { tab = it })
         }
+    }
+    if (profileEditDialogVisible) {
+        ProfileEditDialog(
+            profile = profile,
+            saving = profileEditSaving,
+            error = profileEditError,
+            onDismiss = onDismissProfileEdit,
+            onSubmit = onSubmitProfileEdit
+        )
     }
 }
 
@@ -264,10 +302,14 @@ private fun PageScaffold(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 private fun HomePageUi(
     username: String,
+    actionInfo: String?,
+    actionError: String?,
     onLogout: () -> Unit,
-    onGoAccessCenter: () -> Unit,
-    onGoTerminalMonitor: () -> Unit,
-    onGoBiometric: () -> Unit
+    onAccessApp: (String) -> Unit,
+    onRunSecurityCheck: () -> Unit,
+    onManageFingerprint: () -> Unit,
+    onManageFace: () -> Unit,
+    onManageVoiceprint: () -> Unit
 ) {
     PageScaffold {
         TopTitleBar(
@@ -279,6 +321,7 @@ private fun HomePageUi(
         )
 
         TrustDashboardCard()
+        ActionTip(actionInfo, actionError)
 
         SectionTitleBar(title = "当前系统安全情况", note = "2 项检测")
 
@@ -293,7 +336,7 @@ private fun HomePageUi(
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
-                    .clickable { onGoTerminalMonitor() }
+                    .clickable { onRunSecurityCheck() }
             ) {
                 SoftwareIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -305,7 +348,7 @@ private fun HomePageUi(
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
-                    .clickable { onGoTerminalMonitor() }
+                    .clickable { onRunSecurityCheck() }
             ) {
                 HardwareIcon(Modifier.size(23.dp), Color(0xFF10B981))
             }
@@ -314,10 +357,10 @@ private fun HomePageUi(
         SectionTitleBar(title = "可访问应用", note = "内置应用")
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            AppItem("公文", AppBlueDark, Modifier.weight(1f), onClick = onGoAccessCenter) { DocumentIcon(Modifier.size(25.dp), AppBlueDark) }
-            AppItem("业务", Purple, Modifier.weight(1f), onClick = onGoAccessCenter) { BriefcaseIcon(Modifier.size(25.dp), Purple) }
-            AppItem("档案", Orange, Modifier.weight(1f), onClick = onGoAccessCenter) { FileIcon(Modifier.size(25.dp), Orange) }
-            AppItem("安全", Color(0xFF10B981), Modifier.weight(1f), onClick = onGoAccessCenter) { ShieldIcon(Modifier.size(25.dp), Color(0xFF10B981)) }
+            AppItem("公文", AppBlueDark, Modifier.weight(1f), onClick = { onAccessApp("公文") }) { DocumentIcon(Modifier.size(25.dp), AppBlueDark) }
+            AppItem("业务", Purple, Modifier.weight(1f), onClick = { onAccessApp("业务") }) { BriefcaseIcon(Modifier.size(25.dp), Purple) }
+            AppItem("档案", Orange, Modifier.weight(1f), onClick = { onAccessApp("档案") }) { FileIcon(Modifier.size(25.dp), Orange) }
+            AppItem("安全", Color(0xFF10B981), Modifier.weight(1f), onClick = { onAccessApp("安全") }) { ShieldIcon(Modifier.size(25.dp), Color(0xFF10B981)) }
         }
 
         SectionTitleBar(title = "生物特征信息补充", note = "可补充 / 更改")
@@ -330,7 +373,7 @@ private fun HomePageUi(
                 badgeType = BadgeType.Success,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
-                onClick = onGoBiometric
+                onClick = onManageFingerprint
             ) {
                 FingerprintIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -344,7 +387,7 @@ private fun HomePageUi(
                 badgeType = BadgeType.Warning,
                 iconColor = Purple,
                 iconBg = Purple.copy(alpha = 0.10f),
-                onClick = onGoBiometric
+                onClick = onManageFace
             ) {
                 FaceIcon(Modifier.size(23.dp), Purple)
             }
@@ -358,7 +401,7 @@ private fun HomePageUi(
                 badgeType = BadgeType.Success,
                 iconColor = Orange,
                 iconBg = Orange.copy(alpha = 0.10f),
-                onClick = onGoBiometric
+                onClick = onManageVoiceprint
             ) {
                 VoiceIcon(Modifier.size(23.dp), Orange)
             }
@@ -370,14 +413,18 @@ private fun HomePageUi(
 
 @Composable
 private fun AppsPageUi(
-    onGoAccessCenter: () -> Unit,
-    onGoPolicyCenter: () -> Unit,
-    onGoReleaseCenter: () -> Unit
+    appsCountLabel: String,
+    actionInfo: String?,
+    actionError: String?,
+    onAccessApp: (String) -> Unit,
+    onSyncPolicy: () -> Unit,
+    onRunReleaseCheck: () -> Unit
 ) {
     PageScaffold {
-        TopTitleBar(title = "可访问应用", subtitle = "基于当前信任等级授权", buttonText = "8 个", onClick = onGoReleaseCenter)
+        TopTitleBar(title = "可访问应用", subtitle = "基于当前信任等级授权", buttonText = appsCountLabel, onClick = onRunReleaseCheck)
+        ActionTip(actionInfo, actionError)
 
-        AppGridAll(onGoAccessCenter)
+        AppGridAll(onAccessApp)
 
         Spacer(Modifier.height(18.dp))
 
@@ -389,7 +436,7 @@ private fun AppsPageUi(
                 badgeType = BadgeType.Success,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
-                onClick = onGoAccessCenter
+                onClick = onSyncPolicy
             ) {
                 PlusIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -403,7 +450,7 @@ private fun AppsPageUi(
                 badgeType = BadgeType.Success,
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
-                onClick = onGoPolicyCenter
+                onClick = onSyncPolicy
             ) {
                 ShieldIcon(Modifier.size(23.dp), Color(0xFF10B981))
             }
@@ -415,11 +462,14 @@ private fun AppsPageUi(
 
 @Composable
 private fun SecurityPageUi(
-    onGoTerminalMonitor: () -> Unit,
-    onGoTrustCenter: () -> Unit
+    actionInfo: String?,
+    actionError: String?,
+    onRunSecurityCheck: () -> Unit,
+    onRunTrustCheck: () -> Unit
 ) {
     PageScaffold {
-        TopTitleBar(title = "安全状态", subtitle = "软件与硬件可信检测", buttonText = "检测", onClick = onGoTerminalMonitor)
+        TopTitleBar(title = "安全状态", subtitle = "软件与硬件可信检测", buttonText = "检测", onClick = onRunSecurityCheck)
+        ActionTip(actionInfo, actionError)
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -432,7 +482,7 @@ private fun SecurityPageUi(
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
-                    .clickable { onGoTerminalMonitor() }
+                    .clickable { onRunSecurityCheck() }
             ) {
                 SoftwareIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -444,7 +494,7 @@ private fun SecurityPageUi(
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
-                    .clickable { onGoTerminalMonitor() }
+                    .clickable { onRunSecurityCheck() }
             ) {
                 HardwareIcon(Modifier.size(23.dp), Color(0xFF10B981))
             }
@@ -460,7 +510,7 @@ private fun SecurityPageUi(
                 badgeType = BadgeType.Success,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
-                onClick = onGoTerminalMonitor
+                onClick = onRunSecurityCheck
             ) {
                 ShieldCheckIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -474,7 +524,7 @@ private fun SecurityPageUi(
                 badgeType = BadgeType.Success,
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
-                onClick = onGoTerminalMonitor
+                onClick = onRunSecurityCheck
             ) {
                 ClipboardIcon(Modifier.size(23.dp), Color(0xFF10B981))
             }
@@ -488,7 +538,7 @@ private fun SecurityPageUi(
                 badgeType = BadgeType.Warning,
                 iconColor = Orange,
                 iconBg = Orange.copy(alpha = 0.10f),
-                onClick = onGoTrustCenter
+                onClick = onRunTrustCheck
             ) {
                 WarningIcon(Modifier.size(23.dp), Orange)
             }
@@ -501,12 +551,17 @@ private fun SecurityPageUi(
 @Composable
 private fun ProfilePageUi(
     profile: InternalIdentityUiData,
-    onGoReleaseCenter: () -> Unit,
-    onGoBiometric: () -> Unit,
+    actionInfo: String?,
+    actionError: String?,
+    onOpenProfileEdit: () -> Unit,
+    onManageFingerprint: () -> Unit,
+    onManageFace: () -> Unit,
+    onManageVoiceprint: () -> Unit,
     onGoCertificateCenter: () -> Unit
 ) {
     PageScaffold {
-        TopTitleBar(title = "我的身份", subtitle = "用户信息与身份凭据", buttonText = "编辑", onClick = onGoReleaseCenter)
+        TopTitleBar(title = "我的身份", subtitle = "用户信息与身份凭据", buttonText = "编辑", onClick = onOpenProfileEdit)
+        ActionTip(actionInfo, actionError)
 
         InfoPanel(profile)
 
@@ -520,7 +575,7 @@ private fun ProfilePageUi(
                 badgeType = BadgeType.Success,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
-                onClick = onGoBiometric
+                onClick = onManageFingerprint
             ) {
                 FingerprintIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -534,7 +589,7 @@ private fun ProfilePageUi(
                 badgeType = BadgeType.Warning,
                 iconColor = Purple,
                 iconBg = Purple.copy(alpha = 0.10f),
-                onClick = onGoBiometric
+                onClick = onManageFace
             ) {
                 FaceIcon(Modifier.size(23.dp), Purple)
             }
@@ -548,7 +603,7 @@ private fun ProfilePageUi(
                 badgeType = BadgeType.Success,
                 iconColor = Orange,
                 iconBg = Orange.copy(alpha = 0.10f),
-                onClick = onGoBiometric
+                onClick = onManageVoiceprint
             ) {
                 VoiceIcon(Modifier.size(23.dp), Orange)
             }
@@ -569,6 +624,114 @@ private fun ProfilePageUi(
         }
 
         Spacer(Modifier.height(18.dp))
+    }
+}
+
+@Composable
+private fun ProfileEditDialog(
+    profile: InternalIdentityUiData,
+    saving: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onSubmit: (realName: String, phone: String, email: String, idCardNo: String) -> Unit
+) {
+    var realName by remember(profile.realName) { mutableStateOf(profile.realName) }
+    var phone by remember(profile.phoneMasked) { mutableStateOf(profile.phoneMasked) }
+    var email by remember(profile.emailMasked) { mutableStateOf(profile.emailMasked) }
+    var idCardNo by remember(profile.idCardMasked) { mutableStateOf(profile.idCardMasked) }
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!saving) onDismiss()
+        },
+        title = { Text("编辑用户资料", color = TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                ReadonlyLine("用户名（不可修改）", profile.username)
+                ReadonlyLine("证书编号（不可修改）", profile.certificateNo)
+                OutlinedTextField(
+                    value = realName,
+                    onValueChange = { realName = it },
+                    label = { Text("姓名") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !saving
+                )
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("手机号") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !saving,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                )
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("邮箱") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !saving,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                )
+                OutlinedTextField(
+                    value = idCardNo,
+                    onValueChange = { idCardNo = it },
+                    label = { Text("证件号") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !saving
+                )
+                if (!error.isNullOrBlank()) {
+                    Text(
+                        text = error,
+                        color = Color(0xFFC81E1E),
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = !saving && realName.trim().isNotBlank(),
+                onClick = {
+                    onSubmit(
+                        realName.trim(),
+                        phone.trim(),
+                        email.trim(),
+                        idCardNo.trim()
+                    )
+                }
+            ) {
+                Text(if (saving) "保存中..." else "保存")
+            }
+        },
+        dismissButton = {
+            TextButton(enabled = !saving, onClick = onDismiss) {
+                Text("取消")
+            }
+        }
+    )
+}
+
+@Composable
+private fun ReadonlyLine(label: String, value: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFFF3F5F9))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        Text(text = label, color = TextMuted, fontSize = 11.sp)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = value.ifBlank { "-" },
+            color = Color(0xFF1E293B),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
@@ -719,6 +882,29 @@ private fun LevelBadge() {
 }
 
 @Composable
+private fun ActionTip(info: String?, error: String?) {
+    if (info.isNullOrBlank() && error.isNullOrBlank()) return
+    val text = error ?: info.orEmpty()
+    val isError = !error.isNullOrBlank()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (isError) Color(0xFFFEE2E2) else Color(0xFFECFDF5))
+            .border(1.dp, if (isError) Color(0xFFFCA5A5) else Color(0xFF86EFAC), RoundedCornerShape(14.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = text,
+            color = if (isError) Color(0xFFB91C1C) else Color(0xFF065F46),
+            fontSize = 12.sp,
+            lineHeight = 17.sp
+        )
+    }
+    Spacer(Modifier.height(10.dp))
+}
+
+@Composable
 private fun MiniMetric(value: String, label: String, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
@@ -788,20 +974,20 @@ private fun SecurityStatusCard(
 }
 
 @Composable
-private fun AppGridAll(onAppClick: () -> Unit) {
+private fun AppGridAll(onAppClick: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            AppItem("公文", AppBlueDark, Modifier.weight(1f), onClick = onAppClick) { DocumentIcon(Modifier.size(25.dp), AppBlueDark) }
-            AppItem("业务", Purple, Modifier.weight(1f), onClick = onAppClick) { BriefcaseIcon(Modifier.size(25.dp), Purple) }
-            AppItem("档案", Orange, Modifier.weight(1f), onClick = onAppClick) { FileIcon(Modifier.size(25.dp), Orange) }
-            AppItem("安全", Color(0xFF10B981), Modifier.weight(1f), onClick = onAppClick) { ShieldIcon(Modifier.size(25.dp), Color(0xFF10B981)) }
+            AppItem("公文", AppBlueDark, Modifier.weight(1f), onClick = { onAppClick("公文") }) { DocumentIcon(Modifier.size(25.dp), AppBlueDark) }
+            AppItem("业务", Purple, Modifier.weight(1f), onClick = { onAppClick("业务") }) { BriefcaseIcon(Modifier.size(25.dp), Purple) }
+            AppItem("档案", Orange, Modifier.weight(1f), onClick = { onAppClick("档案") }) { FileIcon(Modifier.size(25.dp), Orange) }
+            AppItem("安全", Color(0xFF10B981), Modifier.weight(1f), onClick = { onAppClick("安全") }) { ShieldIcon(Modifier.size(25.dp), Color(0xFF10B981)) }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            AppItem("消息", Color(0xFF06B6D4), Modifier.weight(1f), onClick = onAppClick) { MessageIcon(Modifier.size(25.dp), Color(0xFF06B6D4)) }
-            AppItem("审批", Color(0xFF64748B), Modifier.weight(1f), onClick = onAppClick) { ClipboardIcon(Modifier.size(25.dp), Color(0xFF64748B)) }
-            AppItem("协同", Color(0xFFEC4899), Modifier.weight(1f), onClick = onAppClick) { SyncIcon(Modifier.size(25.dp), Color(0xFFEC4899)) }
-            AppItem("日志", Color(0xFF0F766E), Modifier.weight(1f), onClick = onAppClick) { ClockIcon(Modifier.size(25.dp), Color(0xFF0F766E)) }
+            AppItem("消息", Color(0xFF06B6D4), Modifier.weight(1f), onClick = { onAppClick("消息") }) { MessageIcon(Modifier.size(25.dp), Color(0xFF06B6D4)) }
+            AppItem("审批", Color(0xFF64748B), Modifier.weight(1f), onClick = { onAppClick("审批") }) { ClipboardIcon(Modifier.size(25.dp), Color(0xFF64748B)) }
+            AppItem("协同", Color(0xFFEC4899), Modifier.weight(1f), onClick = { onAppClick("协同") }) { SyncIcon(Modifier.size(25.dp), Color(0xFFEC4899)) }
+            AppItem("日志", Color(0xFF0F766E), Modifier.weight(1f), onClick = { onAppClick("日志") }) { ClockIcon(Modifier.size(25.dp), Color(0xFF0F766E)) }
         }
     }
 }
@@ -1306,12 +1492,14 @@ private fun CertificateIcon(modifier: Modifier = Modifier, color: Color) {
 private fun HomePreview() {
     InternalSystemScreen(
         onLogout = {},
-        onGoAccessCenter = {},
-        onGoTrustCenter = {},
-        onGoReleaseCenter = {},
-        onGoPolicyCenter = {},
-        onGoTerminalMonitor = {},
-        onGoBiometric = {},
+        onAccessApp = {},
+        onRunTrustCheck = {},
+        onRunReleaseCheck = {},
+        onSyncPolicy = {},
+        onRunSecurityCheck = {},
+        onManageFingerprint = {},
+        onManageFace = {},
+        onManageVoiceprint = {},
         onGoCertificateCenter = {}
     )
 }
@@ -1321,12 +1509,14 @@ private fun HomePreview() {
 private fun AppsPreview() {
     InternalSystemScreen(
         onLogout = {},
-        onGoAccessCenter = {},
-        onGoTrustCenter = {},
-        onGoReleaseCenter = {},
-        onGoPolicyCenter = {},
-        onGoTerminalMonitor = {},
-        onGoBiometric = {},
+        onAccessApp = {},
+        onRunTrustCheck = {},
+        onRunReleaseCheck = {},
+        onSyncPolicy = {},
+        onRunSecurityCheck = {},
+        onManageFingerprint = {},
+        onManageFace = {},
+        onManageVoiceprint = {},
         onGoCertificateCenter = {}
     )
 }
@@ -1336,12 +1526,14 @@ private fun AppsPreview() {
 private fun SecurityPreview() {
     InternalSystemScreen(
         onLogout = {},
-        onGoAccessCenter = {},
-        onGoTrustCenter = {},
-        onGoReleaseCenter = {},
-        onGoPolicyCenter = {},
-        onGoTerminalMonitor = {},
-        onGoBiometric = {},
+        onAccessApp = {},
+        onRunTrustCheck = {},
+        onRunReleaseCheck = {},
+        onSyncPolicy = {},
+        onRunSecurityCheck = {},
+        onManageFingerprint = {},
+        onManageFace = {},
+        onManageVoiceprint = {},
         onGoCertificateCenter = {}
     )
 }
@@ -1351,12 +1543,14 @@ private fun SecurityPreview() {
 private fun ProfilePreview() {
     InternalSystemScreen(
         onLogout = {},
-        onGoAccessCenter = {},
-        onGoTrustCenter = {},
-        onGoReleaseCenter = {},
-        onGoPolicyCenter = {},
-        onGoTerminalMonitor = {},
-        onGoBiometric = {},
+        onAccessApp = {},
+        onRunTrustCheck = {},
+        onRunReleaseCheck = {},
+        onSyncPolicy = {},
+        onRunSecurityCheck = {},
+        onManageFingerprint = {},
+        onManageFace = {},
+        onManageVoiceprint = {},
         onGoCertificateCenter = {}
     )
 }

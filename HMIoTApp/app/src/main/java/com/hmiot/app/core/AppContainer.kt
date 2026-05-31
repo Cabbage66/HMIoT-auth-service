@@ -19,6 +19,8 @@ import com.hmiot.app.feature.policy.domain.PolicyEngine
 import com.hmiot.app.feature.policy.domain.PolicyRepository
 import com.hmiot.app.feature.access.data.AccessApi
 import com.hmiot.app.feature.access.domain.AccessRepository
+import com.hmiot.app.feature.profile.data.UserProfileApi
+import com.hmiot.app.feature.profile.domain.UserProfileRepository
 import com.hmiot.app.feature.trust.domain.TrustGuardRepository
 import com.hmiot.app.feature.release.domain.ReleaseValidationRepository
 import com.hmiot.app.feature.terminal.data.TerminalMonitorApi
@@ -42,6 +44,7 @@ class AppContainer(context: Context) {
     private val terminalMonitorApi = ApiClient.retrofit.create(TerminalMonitorApi::class.java)
     private val policyApi = ApiClient.retrofit.create(PolicyApi::class.java)
     private val accessApi = ApiClient.retrofit.create(AccessApi::class.java)
+    private val userProfileApi = ApiClient.retrofit.create(UserProfileApi::class.java)
 
     val authRepository = AuthRepository(authApi, terminalEventApi, sessionManager)
     val registrationRepository = RegistrationRepository(registrationApi)
@@ -57,6 +60,7 @@ class AppContainer(context: Context) {
     val policyEngine = PolicyEngine()
     val trustGuardRepository = TrustGuardRepository(preferenceStore, terminalMonitorRepository)
     val accessRepository = AccessRepository(accessApi, policyRepository, policyEngine, trustGuardRepository)
+    val userProfileRepository = UserProfileRepository(userProfileApi)
     val releaseValidationRepository = ReleaseValidationRepository(
         policyRepository = policyRepository,
         accessRepository = accessRepository,

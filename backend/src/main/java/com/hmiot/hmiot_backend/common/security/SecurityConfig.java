@@ -45,7 +45,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/dynamic-biometrics/reports", "/api/v1/iot-device-statuses/reports").permitAll()
                         .requestMatchers("/api/v1/iot-device-statuses/check", "/api/v1/terminal-events/reports", "/api/v1/terminal-events/my/recent", "/api/v1/trust-assessments/check").authenticated()
                         .requestMatchers("/api/v1/users/**", "/api/v1/admin/registrations/**", "/api/v1/certificates/**", "/api/v1/apps/**", "/api/v1/devices/**", "/api/v1/terminals/**", "/api/v1/bindings/**", "/api/v1/auth-methods/**", "/api/v1/auth-policies/**", "/api/v1/security-baselines/**", "/api/v1/policies/publish-records", "/api/v1/biometric-templates/**", "/api/v1/biometric-auth-records/**", "/api/v1/iot-device-statuses/**", "/api/v1/terminal-events/**", "/api/v1/trust-assessments/**").hasAnyRole("SYSTEM_ADMIN", "ADMIN")
-                        .requestMatchers("/api/v1/voiceprints/**", "/api/v1/dynamic-biometrics/**").authenticated()
+                        .requestMatchers("/api/v1/voiceprints/**", "/api/v1/fingerprints/**", "/api/v1/faces/**", "/api/v1/dynamic-biometrics/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception

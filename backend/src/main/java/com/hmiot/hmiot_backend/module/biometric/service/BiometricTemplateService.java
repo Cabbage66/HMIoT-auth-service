@@ -36,6 +36,8 @@ import java.util.Map;
 @Service
 public class BiometricTemplateService {
     public static final String VOICEPRINT = "VOICEPRINT";
+    public static final String FINGERPRINT = "FINGERPRINT";
+    public static final String FACE = "FACE";
     public static final String DYNAMIC_BIOMETRIC = "DYNAMIC_BIOMETRIC";
     public static final String PENDING = "PENDING";
     public static final String APPROVED = "APPROVED";
@@ -91,6 +93,22 @@ public class BiometricTemplateService {
                 .stream().map(this::toTemplateVO).toList();
     }
 
+    public List<BiometricTemplateVO> listUserFingerprints(Long userId) {
+        return biometricTemplateMapper.selectList(new LambdaQueryWrapper<BiometricTemplate>()
+                        .eq(BiometricTemplate::getUserId, userId)
+                        .eq(BiometricTemplate::getBiometricType, FINGERPRINT)
+                        .orderByDesc(BiometricTemplate::getCreatedAt))
+                .stream().map(this::toTemplateVO).toList();
+    }
+
+    public List<BiometricTemplateVO> listUserFaces(Long userId) {
+        return biometricTemplateMapper.selectList(new LambdaQueryWrapper<BiometricTemplate>()
+                        .eq(BiometricTemplate::getUserId, userId)
+                        .eq(BiometricTemplate::getBiometricType, FACE)
+                        .orderByDesc(BiometricTemplate::getCreatedAt))
+                .stream().map(this::toTemplateVO).toList();
+    }
+
     @Transactional
     public BiometricTemplateVO reviewTemplate(Long id, BiometricTemplateReviewRequest request) {
         BiometricTemplate template = findTemplate(id);
@@ -112,6 +130,15 @@ public class BiometricTemplateService {
         template.setReviewedBy(currentAdmin == null ? null : currentAdmin.adminId());
         template.setReviewedAt(LocalDateTime.now());
         biometricTemplateMapper.updateById(template);
+        if (APPROVED.equals(request.auditStatus()) && VOICEPRINT.equals(template.getBiometricType())) {
+            replaceOtherActiveVoiceprints(template.getUserId(), template.getId());
+        }
+        if (APPROVED.equals(request.auditStatus()) && FINGERPRINT.equals(template.getBiometricType())) {
+            replaceOtherActiveFingerprints(template.getUserId(), template.getId());
+        }
+        if (APPROVED.equals(request.auditStatus()) && FACE.equals(template.getBiometricType())) {
+            replaceOtherActiveFaces(template.getUserId(), template.getId());
+        }
         return toTemplateVO(template);
     }
 
@@ -201,6 +228,55 @@ public class BiometricTemplateService {
         return template;
     }
 
+    public BiometricTemplate latestApprovedFingerprint(Long userId) {
+        BiometricTemplate template = biometricTemplateMapper.selectOne(new LambdaQueryWrapper<BiometricTemplate>()
+                .eq(BiometricTemplate::getUserId, userId)
+                .eq(BiometricTemplate::getBiometricType, FINGERPRINT)
+                .eq(BiometricTemplate::getAuditStatus, APPROVED)
+                .eq(BiometricTemplate::getTemplateStatus, ACTIVE)
+                .orderByDesc(BiometricTemplate::getVersionNo)
+                .orderByDesc(BiometricTemplate::getCreatedAt)
+                .last("LIMIT 1"));
+        if (template == null) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "用户无已审核通过的指纹模板");
+        }
+        return template;
+    }
+
+    public BiometricTemplate latestApprovedFace(Long userId) {
+        BiometricTemplate template = biometricTemplateMapper.selectOne(new LambdaQueryWrapper<BiometricTemplate>()
+                .eq(BiometricTemplate::getUserId, userId)
+                .eq(BiometricTemplate::getBiometricType, FACE)
+                .eq(BiometricTemplate::getAuditStatus, APPROVED)
+                .eq(BiometricTemplate::getTemplateStatus, ACTIVE)
+                .orderByDesc(BiometricTemplate::getVersionNo)
+                .orderByDesc(BiometricTemplate::getCreatedAt)
+                .last("LIMIT 1"));
+        if (template == null) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "用户无已审核通过的人脸模板");
+        }
+        return template;
+    }
+
+    public BiometricTemplate approvedActiveFingerprintByKeyId(Long userId, String keyId) {
+        if (!StringUtils.hasText(keyId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "指纹KeyId不能为空");
+        }
+        BiometricTemplate template = biometricTemplateMapper.selectOne(new LambdaQueryWrapper<BiometricTemplate>()
+                .eq(BiometricTemplate::getUserId, userId)
+                .eq(BiometricTemplate::getBiometricType, FINGERPRINT)
+                .eq(BiometricTemplate::getAuditStatus, APPROVED)
+                .eq(BiometricTemplate::getTemplateStatus, ACTIVE)
+                .eq(BiometricTemplate::getTemplateRef, keyId.trim())
+                .orderByDesc(BiometricTemplate::getVersionNo)
+                .orderByDesc(BiometricTemplate::getCreatedAt)
+                .last("LIMIT 1"));
+        if (template == null) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "指纹模板未绑定或未通过审核");
+        }
+        return template;
+    }
+
     public BiometricAuthRecord findSuccessfulVoiceprintRecord(Long recordId, Long userId) {
         BiometricAuthRecord record = biometricAuthRecordMapper.selectOne(new LambdaQueryWrapper<BiometricAuthRecord>()
                 .eq(BiometricAuthRecord::getId, recordId)
@@ -222,12 +298,90 @@ public class BiometricTemplateService {
         return template == null || template.getVersionNo() == null ? 1 : template.getVersionNo() + 1;
     }
 
+    public int nextFingerprintVersion(Long userId) {
+        BiometricTemplate template = biometricTemplateMapper.selectOne(new LambdaQueryWrapper<BiometricTemplate>()
+                .eq(BiometricTemplate::getUserId, userId)
+                .eq(BiometricTemplate::getBiometricType, FINGERPRINT)
+                .orderByDesc(BiometricTemplate::getVersionNo)
+                .last("LIMIT 1"));
+        return template == null || template.getVersionNo() == null ? 1 : template.getVersionNo() + 1;
+    }
+
+    public int nextFaceVersion(Long userId) {
+        BiometricTemplate template = biometricTemplateMapper.selectOne(new LambdaQueryWrapper<BiometricTemplate>()
+                .eq(BiometricTemplate::getUserId, userId)
+                .eq(BiometricTemplate::getBiometricType, FACE)
+                .orderByDesc(BiometricTemplate::getVersionNo)
+                .last("LIMIT 1"));
+        return template == null || template.getVersionNo() == null ? 1 : template.getVersionNo() + 1;
+    }
+
     public void replaceActivePendingVoiceprints(Long userId) {
         List<BiometricTemplate> templates = biometricTemplateMapper.selectList(new LambdaQueryWrapper<BiometricTemplate>()
                 .eq(BiometricTemplate::getUserId, userId)
                 .eq(BiometricTemplate::getBiometricType, VOICEPRINT)
                 .eq(BiometricTemplate::getTemplateStatus, ACTIVE)
                 .ne(BiometricTemplate::getAuditStatus, APPROVED));
+        for (BiometricTemplate template : templates) {
+            template.setTemplateStatus(REPLACED);
+            biometricTemplateMapper.updateById(template);
+        }
+    }
+
+    public void replaceActivePendingFingerprints(Long userId) {
+        List<BiometricTemplate> templates = biometricTemplateMapper.selectList(new LambdaQueryWrapper<BiometricTemplate>()
+                .eq(BiometricTemplate::getUserId, userId)
+                .eq(BiometricTemplate::getBiometricType, FINGERPRINT)
+                .eq(BiometricTemplate::getTemplateStatus, ACTIVE)
+                .ne(BiometricTemplate::getAuditStatus, APPROVED));
+        for (BiometricTemplate template : templates) {
+            template.setTemplateStatus(REPLACED);
+            biometricTemplateMapper.updateById(template);
+        }
+    }
+
+    public void replaceActivePendingFaces(Long userId) {
+        List<BiometricTemplate> templates = biometricTemplateMapper.selectList(new LambdaQueryWrapper<BiometricTemplate>()
+                .eq(BiometricTemplate::getUserId, userId)
+                .eq(BiometricTemplate::getBiometricType, FACE)
+                .eq(BiometricTemplate::getTemplateStatus, ACTIVE)
+                .ne(BiometricTemplate::getAuditStatus, APPROVED));
+        for (BiometricTemplate template : templates) {
+            template.setTemplateStatus(REPLACED);
+            biometricTemplateMapper.updateById(template);
+        }
+    }
+
+    private void replaceOtherActiveVoiceprints(Long userId, Long keepTemplateId) {
+        List<BiometricTemplate> templates = biometricTemplateMapper.selectList(new LambdaQueryWrapper<BiometricTemplate>()
+                .eq(BiometricTemplate::getUserId, userId)
+                .eq(BiometricTemplate::getBiometricType, VOICEPRINT)
+                .eq(BiometricTemplate::getTemplateStatus, ACTIVE)
+                .ne(BiometricTemplate::getId, keepTemplateId));
+        for (BiometricTemplate template : templates) {
+            template.setTemplateStatus(REPLACED);
+            biometricTemplateMapper.updateById(template);
+        }
+    }
+
+    private void replaceOtherActiveFingerprints(Long userId, Long keepTemplateId) {
+        List<BiometricTemplate> templates = biometricTemplateMapper.selectList(new LambdaQueryWrapper<BiometricTemplate>()
+                .eq(BiometricTemplate::getUserId, userId)
+                .eq(BiometricTemplate::getBiometricType, FINGERPRINT)
+                .eq(BiometricTemplate::getTemplateStatus, ACTIVE)
+                .ne(BiometricTemplate::getId, keepTemplateId));
+        for (BiometricTemplate template : templates) {
+            template.setTemplateStatus(REPLACED);
+            biometricTemplateMapper.updateById(template);
+        }
+    }
+
+    private void replaceOtherActiveFaces(Long userId, Long keepTemplateId) {
+        List<BiometricTemplate> templates = biometricTemplateMapper.selectList(new LambdaQueryWrapper<BiometricTemplate>()
+                .eq(BiometricTemplate::getUserId, userId)
+                .eq(BiometricTemplate::getBiometricType, FACE)
+                .eq(BiometricTemplate::getTemplateStatus, ACTIVE)
+                .ne(BiometricTemplate::getId, keepTemplateId));
         for (BiometricTemplate template : templates) {
             template.setTemplateStatus(REPLACED);
             biometricTemplateMapper.updateById(template);

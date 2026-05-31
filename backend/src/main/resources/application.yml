@@ -75,6 +75,7 @@ hmiot:
     read-timeout: ${INTEGRATION_READ_TIMEOUT:5s}
     certificate-service-url: ${CERTIFICATE_SERVICE_URL:http://localhost:5000}
     voiceprint-service-url: ${VOICEPRINT_SERVICE_URL:http://localhost:5003}
+    face-service-url: ${FACE_SERVICE_URL:http://localhost:5005}
     ueba-service-url: ${UEBA_SERVICE_URL:http://localhost:5004}
     post-quantum-attribute-url: ${POST_QUANTUM_ATTRIBUTE_URL:mock://post-quantum-attribute}
     dynamic-biometric-url: ${DYNAMIC_BIOMETRIC_URL:mock://dynamic-biometric}

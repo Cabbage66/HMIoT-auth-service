@@ -24,7 +24,12 @@ data class RegistrationSubmitRequest(
     val realName: String,
     val phone: String?,
     val email: String?,
-    val idCardNo: String?
+    val idCardNo: String?,
+    val voiceprintAudioBase64: String?,
+    val voiceprintAudioFormat: String?,
+    val voiceprintSampleRate: Int?,
+    val faceImageBase64: String?,
+    val faceImageFormat: String?
 )
 
 data class RegistrationSubmitResponse(

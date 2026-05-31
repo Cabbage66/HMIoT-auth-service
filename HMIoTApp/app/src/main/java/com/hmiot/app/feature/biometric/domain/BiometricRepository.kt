@@ -8,8 +8,22 @@ import com.hmiot.app.feature.biometric.data.BiometricApi
 import com.hmiot.app.feature.biometric.data.DynamicQueryRequest
 import com.hmiot.app.feature.biometric.data.DynamicAuthRecordStatusResponse
 import com.hmiot.app.feature.biometric.data.DynamicVerifyResponse
+import com.hmiot.app.feature.biometric.data.FaceAuthRecordStatusResponse
+import com.hmiot.app.feature.biometric.data.FaceHealthResponse
+import com.hmiot.app.feature.biometric.data.FaceSubmitRequest
+import com.hmiot.app.feature.biometric.data.FaceTemplateStatusResponse
+import com.hmiot.app.feature.biometric.data.FaceVerifyRequest
+import com.hmiot.app.feature.biometric.data.FaceVerifyResponse
+import com.hmiot.app.feature.biometric.data.FingerprintAuthRecordStatusResponse
+import com.hmiot.app.feature.biometric.data.FingerprintChallengeRequest
+import com.hmiot.app.feature.biometric.data.FingerprintChallengeResponse
 import com.hmiot.app.feature.biometric.data.HealthResponse
+import com.hmiot.app.feature.biometric.data.FingerprintHealthResponse
 import com.hmiot.app.feature.biometric.data.PageEnvelope
+import com.hmiot.app.feature.biometric.data.FingerprintSubmitRequest
+import com.hmiot.app.feature.biometric.data.FingerprintTemplateStatusResponse
+import com.hmiot.app.feature.biometric.data.FingerprintVerifyRequest
+import com.hmiot.app.feature.biometric.data.FingerprintVerifyResponse
 import com.hmiot.app.feature.biometric.data.VoiceAuthRecordStatusResponse
 import com.hmiot.app.feature.biometric.data.VoiceTemplateStatusResponse
 import com.hmiot.app.feature.biometric.data.VoiceVerifyRequest
@@ -31,6 +45,27 @@ class BiometricRepository(
 
     suspend fun voiceHealth(): ApiResult<HealthResponse> = runApi { api.voiceHealth() }
     suspend fun dynamicHealth(): ApiResult<HealthResponse> = runApi { api.dynamicHealth() }
+    suspend fun fingerprintHealth(): ApiResult<FingerprintHealthResponse> = runApi { api.fingerprintHealth() }
+    suspend fun fingerprintChallenge(purpose: String, keyId: String): ApiResult<FingerprintChallengeResponse> =
+        runApi { api.fingerprintChallenge(FingerprintChallengeRequest(purpose = purpose, keyId = keyId)) }
+    suspend fun fingerprintEnroll(request: FingerprintSubmitRequest): ApiResult<FingerprintTemplateStatusResponse> =
+        runApi { api.fingerprintEnroll(request) }
+    suspend fun fingerprintRecollect(request: FingerprintSubmitRequest): ApiResult<FingerprintTemplateStatusResponse> =
+        runApi { api.fingerprintRecollect(request) }
+    suspend fun fingerprintVerify(request: FingerprintVerifyRequest): ApiResult<FingerprintVerifyResponse> =
+        runApi { api.fingerprintVerify(request) }
+    suspend fun fingerprintTemplates(): ApiResult<List<FingerprintTemplateStatusResponse>> = runApi { api.fingerprintTemplates() }
+    suspend fun fingerprintAuthRecords(): ApiResult<PageEnvelope<FingerprintAuthRecordStatusResponse>> = runApi { api.fingerprintAuthRecords() }
+    suspend fun faceHealth(): ApiResult<FaceHealthResponse> = runApi { api.faceHealth() }
+    suspend fun faceEnroll(imageBase64: String, imageFormat: String = "jpeg"): ApiResult<FaceTemplateStatusResponse> =
+        runApi { api.faceEnroll(FaceSubmitRequest(imageBase64 = imageBase64, imageFormat = imageFormat)) }
+    suspend fun faceRecollect(imageBase64: String, imageFormat: String = "jpeg"): ApiResult<FaceTemplateStatusResponse> =
+        runApi { api.faceRecollect(FaceSubmitRequest(imageBase64 = imageBase64, imageFormat = imageFormat)) }
+    suspend fun faceVerify(imageBase64: String, imageFormat: String = "jpeg"): ApiResult<FaceVerifyResponse> =
+        runApi { api.faceVerify(FaceVerifyRequest(imageBase64 = imageBase64, imageFormat = imageFormat)) }
+    suspend fun faceTemplates(): ApiResult<List<FaceTemplateStatusResponse>> = runApi { api.faceTemplates() }
+    suspend fun faceAuthRecords(): ApiResult<PageEnvelope<FaceAuthRecordStatusResponse>> = runApi { api.faceAuthRecords() }
+
     suspend fun voiceVerify(audioBase64: String): ApiResult<VoiceVerifyResponse> =
         runApi { api.voiceVerify(VoiceVerifyRequest(audioBase64 = audioBase64, audioFormat = "wav", sampleRate = 16000)) }
     suspend fun voiceEnroll(audioBase64: String): ApiResult<VoiceTemplateStatusResponse> =

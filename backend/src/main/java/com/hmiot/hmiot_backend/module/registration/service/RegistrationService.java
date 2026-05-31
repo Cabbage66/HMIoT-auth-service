@@ -6,6 +6,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hmiot.hmiot_backend.common.exception.BusinessException;
 import com.hmiot.hmiot_backend.common.exception.ErrorCode;
+import com.hmiot.hmiot_backend.module.biometric.entity.BiometricTemplate;
+import com.hmiot.hmiot_backend.module.biometric.mapper.BiometricTemplateMapper;
+import com.hmiot.hmiot_backend.module.biometric.service.BiometricTemplateService;
+import com.hmiot.hmiot_backend.module.biometric.service.FaceAuthService;
+import com.hmiot.hmiot_backend.module.integration.service.VoiceprintIntegrationClient;
+import com.hmiot.hmiot_backend.module.integration.service.VoiceprintIntegrationClient.EnrollResult;
 import com.hmiot.hmiot_backend.module.registration.dto.AdminRegistrationQueryRequest;
 import com.hmiot.hmiot_backend.module.registration.dto.OfflineRegistrationBatchRequest;
 import com.hmiot.hmiot_backend.module.registration.dto.OfflineRegistrationCreateRequest;
@@ -50,19 +56,31 @@ public class RegistrationService {
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final BiometricTemplateMapper biometricTemplateMapper;
+    private final BiometricTemplateService biometricTemplateService;
+    private final VoiceprintIntegrationClient voiceprintIntegrationClient;
+    private final FaceAuthService faceAuthService;
 
     public RegistrationService(
             UserAccountMapper userAccountMapper,
             RegistrationRequestMapper registrationRequestMapper,
             PasswordEncoder passwordEncoder,
             ObjectMapper objectMapper,
-            TransactionTemplate transactionTemplate
+            TransactionTemplate transactionTemplate,
+            BiometricTemplateMapper biometricTemplateMapper,
+            BiometricTemplateService biometricTemplateService,
+            VoiceprintIntegrationClient voiceprintIntegrationClient,
+            FaceAuthService faceAuthService
     ) {
         this.userAccountMapper = userAccountMapper;
         this.registrationRequestMapper = registrationRequestMapper;
         this.passwordEncoder = passwordEncoder;
         this.objectMapper = objectMapper;
         this.transactionTemplate = transactionTemplate;
+        this.biometricTemplateMapper = biometricTemplateMapper;
+        this.biometricTemplateService = biometricTemplateService;
+        this.voiceprintIntegrationClient = voiceprintIntegrationClient;
+        this.faceAuthService = faceAuthService;
     }
 
     @Transactional
@@ -74,6 +92,11 @@ public class RegistrationService {
                 request.phone(),
                 request.email(),
                 request.idCardNo(),
+                request.voiceprintAudioBase64(),
+                request.voiceprintAudioFormat(),
+                request.voiceprintSampleRate(),
+                request.faceImageBase64(),
+                request.faceImageFormat(),
                 REGISTER_SOURCE_ONLINE,
                 false,
                 null
@@ -152,9 +175,14 @@ public class RegistrationService {
                 request.phone(),
                 request.email(),
                 request.idCardNo(),
-                REGISTER_SOURCE_OFFLINE,
-                autoApprove,
-                reviewerId
+                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                REGISTER_SOURCE_OFFLINE,
+                                autoApprove,
+                                reviewerId
         );
     }
 
@@ -169,6 +197,11 @@ public class RegistrationService {
                                 item.phone(),
                                 item.email(),
                                 item.idCardNo(),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
                                 REGISTER_SOURCE_OFFLINE,
                                 item.autoApprove() == null || item.autoApprove(),
                                 reviewerId
@@ -194,6 +227,11 @@ public class RegistrationService {
             String phone,
             String email,
             String idCardNo,
+            String voiceprintAudioBase64,
+            String voiceprintAudioFormat,
+            Integer voiceprintSampleRate,
+            String faceImageBase64,
+            String faceImageFormat,
             String registerSource,
             boolean autoApprove,
             Long reviewerId
@@ -231,9 +269,81 @@ public class RegistrationService {
         payload.put("idCardNo", user.getIdCardNo() == null ? "" : user.getIdCardNo());
         payload.put("registerSource", registerSource);
         payload.put("autoApprove", autoApprove);
+        payload.put("voiceprintSubmitted", StringUtils.hasText(voiceprintAudioBase64));
+        payload.put("faceSubmitted", StringUtils.hasText(faceImageBase64));
+        if (StringUtils.hasText(voiceprintAudioBase64)) {
+            payload.put("voiceprintAudioFormat", emptyToNull(voiceprintAudioFormat) == null ? "wav" : voiceprintAudioFormat.trim());
+            payload.put("voiceprintSampleRate", voiceprintSampleRate == null ? 16000 : voiceprintSampleRate);
+        }
+        if (StringUtils.hasText(faceImageBase64)) {
+            payload.put("faceImageFormat", emptyToNull(faceImageFormat) == null ? "jpeg" : faceImageFormat.trim());
+        }
         registration.setRequestPayload(toJson(payload));
         registrationRequestMapper.insert(registration);
+
+        if (StringUtils.hasText(voiceprintAudioBase64)) {
+            createPendingVoiceprintTemplate(user, voiceprintAudioBase64, voiceprintAudioFormat, voiceprintSampleRate, registerSource);
+        }
+        if (StringUtils.hasText(faceImageBase64)) {
+            createPendingFaceTemplate(user, faceImageBase64, faceImageFormat, registerSource);
+        }
         return new RegistrationSubmitResponse(registration.getId(), user.getId(), user.getUsername(), registration.getStatus(), registration.getCreatedAt());
+    }
+
+    private void createPendingFaceTemplate(
+            UserAccount user,
+            String faceImageBase64,
+            String faceImageFormat,
+            String registerSource
+    ) {
+        faceAuthService.createPendingTemplateByRegistration(
+                user.getId(),
+                user.getUsername(),
+                faceImageBase64,
+                faceImageFormat,
+                registerSource
+        );
+    }
+
+    private void createPendingVoiceprintTemplate(
+            UserAccount user,
+            String voiceprintAudioBase64,
+            String voiceprintAudioFormat,
+            Integer voiceprintSampleRate,
+            String registerSource
+    ) {
+        EnrollResult result = voiceprintIntegrationClient.enroll(
+                user.getId(),
+                user.getUsername(),
+                voiceprintAudioBase64.trim(),
+                Map.of(
+                        "scene", "REGISTRATION_SUBMIT",
+                        "registerSource", registerSource,
+                        "audioFormat", emptyToNull(voiceprintAudioFormat) == null ? "wav" : voiceprintAudioFormat.trim(),
+                        "sampleRate", voiceprintSampleRate == null ? 16000 : voiceprintSampleRate
+                )
+        );
+
+        BiometricTemplate template = new BiometricTemplate();
+        template.setUserId(user.getId());
+        template.setBiometricType(BiometricTemplateService.VOICEPRINT);
+        template.setTemplateDigest(result.templateDigest());
+        template.setTemplateRef(result.templateRef());
+        template.setModelSource(result.modelSource());
+        template.setModelVersion(result.modelVersion());
+        template.setThreshold(result.threshold());
+        template.setAuditStatus(BiometricTemplateService.PENDING);
+        template.setTemplateStatus(BiometricTemplateService.ACTIVE);
+        template.setVersionNo(biometricTemplateService.nextVoiceprintVersion(user.getId()));
+        template.setSubmittedAt(LocalDateTime.now());
+        template.setMetadata(biometricTemplateService.toJson(Map.of(
+                "scene", "REGISTRATION_SUBMIT",
+                "registerSource", registerSource,
+                "audioFormat", emptyToNull(voiceprintAudioFormat) == null ? "wav" : voiceprintAudioFormat.trim(),
+                "sampleRate", voiceprintSampleRate == null ? 16000 : voiceprintSampleRate,
+                "modelResponse", result.rawResponse() == null ? Map.of() : result.rawResponse()
+        )));
+        biometricTemplateMapper.insert(template);
     }
 
     private RegistrationProgressVO toVO(RegistrationRequest request) {

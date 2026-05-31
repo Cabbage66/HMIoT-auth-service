@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.hmiot.app.core.network.NetworkErrorMapper
 import com.hmiot.app.core.network.model.ApiResult
 import com.hmiot.app.feature.auth.data.ChallengeRequest
-import com.hmiot.app.feature.auth.data.BiometricLoginRequest
+import com.hmiot.app.feature.auth.data.FaceLoginRequest
+import com.hmiot.app.feature.auth.data.FingerprintChallengeRequest
+import com.hmiot.app.feature.auth.data.FingerprintLoginRequest
 import com.hmiot.app.feature.auth.data.PasswordLoginRequest
 import com.hmiot.app.feature.auth.data.VerifyRequest
 import com.hmiot.app.feature.auth.data.VoiceprintLoginRequest
@@ -107,15 +109,91 @@ class LoginViewModel(
         }
     }
 
-    fun fingerprintLogin(onSuccess: () -> Unit) {
+    fun requestFingerprintChallenge(
+        keyId: String,
+        onReady: (FingerprintChallengeUiData) -> Unit
+    ) {
         val current = _state.value
         if (current.username.isBlank() || current.terminalCode.isBlank()) {
             _state.update { it.copy(error = "请先填写用户名与终端编码") }
             return
         }
+        if (keyId.isBlank()) {
+            _state.update { it.copy(error = "指纹密钥ID为空") }
+            return
+        }
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null, info = "指纹认证通过，正在登录...") }
-            when (val result = authRepository.loginByFingerprint(buildBiometricLoginRequest(current, "FINGERPRINT"))) {
+            _state.update { it.copy(loading = true, error = null, info = "正在申请指纹登录挑战...") }
+            val request = FingerprintChallengeRequest(
+                username = current.username.trim(),
+                terminalCode = current.terminalCode.trim(),
+                keyId = keyId.trim(),
+                deviceFingerprint = "android-${android.os.Build.DEVICE ?: "unknown"}",
+                clientType = "ANDROID",
+                clientVersion = "1.0.0",
+                osName = "Android",
+                osVersion = android.os.Build.VERSION.RELEASE ?: "unknown",
+                userAgent = "HMIoTApp/1.0",
+                metadata = """{"loginMode":"FINGERPRINT"}"""
+            )
+            when (val result = authRepository.requestFingerprintChallenge(request)) {
+                is ApiResult.Success -> {
+                    _state.update {
+                        it.copy(
+                            loading = false,
+                            info = "指纹挑战获取成功，正在等待系统指纹验证..."
+                        )
+                    }
+                    onReady(
+                        FingerprintChallengeUiData(
+                            sessionId = result.data.sessionId,
+                            challengeId = result.data.challengeId,
+                            challenge = result.data.challenge,
+                            keyId = result.data.keyId
+                        )
+                    )
+                }
+                is ApiResult.Failure -> _state.update {
+                    it.copy(loading = false, error = NetworkErrorMapper.toMessage(result.code, result.message, result.traceId))
+                }
+            }
+        }
+    }
+
+    fun fingerprintLoginWithSignature(
+        challenge: FingerprintChallengeUiData,
+        signatureBase64: String,
+        signAlgorithm: String,
+        onSuccess: () -> Unit
+    ) {
+        val current = _state.value
+        if (current.username.isBlank() || current.terminalCode.isBlank()) {
+            _state.update { it.copy(error = "请先填写用户名与终端编码") }
+            return
+        }
+        if (signatureBase64.isBlank()) {
+            _state.update { it.copy(error = "指纹签名为空，无法登录") }
+            return
+        }
+        viewModelScope.launch {
+            _state.update { it.copy(loading = true, error = null, info = "指纹验证通过，正在登录...") }
+            val request = FingerprintLoginRequest(
+                username = current.username.trim(),
+                sessionId = challenge.sessionId,
+                challengeId = challenge.challengeId,
+                keyId = challenge.keyId,
+                signatureBase64 = signatureBase64.trim(),
+                signAlgorithm = signAlgorithm.trim().ifBlank { "SHA256withECDSA" },
+                terminalCode = current.terminalCode.trim(),
+                deviceFingerprint = "android-${android.os.Build.DEVICE ?: "unknown"}",
+                clientType = "ANDROID",
+                clientVersion = "1.0.0",
+                osName = "Android",
+                osVersion = android.os.Build.VERSION.RELEASE ?: "unknown",
+                userAgent = "HMIoTApp/1.0",
+                metadata = """{"loginMode":"FINGERPRINT","keyId":"${challenge.keyId}"}"""
+            )
+            when (val result = authRepository.loginByFingerprint(request)) {
                 is ApiResult.Success -> {
                     _state.update {
                         it.copy(
@@ -132,15 +210,19 @@ class LoginViewModel(
         }
     }
 
-    fun faceLogin(onSuccess: () -> Unit) {
+    fun faceLogin(imageBase64: String, onSuccess: () -> Unit) {
         val current = _state.value
         if (current.username.isBlank() || current.terminalCode.isBlank()) {
             _state.update { it.copy(error = "请先填写用户名与终端编码") }
             return
         }
+        if (imageBase64.isBlank()) {
+            _state.update { it.copy(error = "人脸样本为空，无法登录") }
+            return
+        }
         viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null, info = "人脸识别通过，正在登录...") }
-            when (val result = authRepository.loginByFace(buildBiometricLoginRequest(current, "FACE"))) {
+            _state.update { it.copy(loading = true, error = null, info = "人脸采集完成，正在远端比对登录...") }
+            when (val result = authRepository.loginByFace(buildFaceLoginRequest(current, imageBase64))) {
                 is ApiResult.Success -> {
                     _state.update {
                         it.copy(
@@ -223,9 +305,11 @@ class LoginViewModel(
         }
     }
 
-    private fun buildBiometricLoginRequest(current: LoginUiState, type: String): BiometricLoginRequest {
-        return BiometricLoginRequest(
+    private fun buildFaceLoginRequest(current: LoginUiState, imageBase64: String): FaceLoginRequest {
+        return FaceLoginRequest(
             username = current.username.trim(),
+            imageBase64 = imageBase64.trim(),
+            imageFormat = "jpeg",
             terminalCode = current.terminalCode.trim(),
             deviceFingerprint = "android-${android.os.Build.DEVICE ?: "unknown"}",
             clientType = "ANDROID",
@@ -233,7 +317,7 @@ class LoginViewModel(
             osName = "Android",
             osVersion = android.os.Build.VERSION.RELEASE ?: "unknown",
             userAgent = "HMIoTApp/1.0",
-            metadata = """{"loginMode":"$type"}"""
+            metadata = """{"loginMode":"FACE"}"""
         )
     }
 
@@ -268,6 +352,13 @@ class LoginViewModel(
         }
     }
 }
+
+data class FingerprintChallengeUiData(
+    val sessionId: String,
+    val challengeId: String,
+    val challenge: String,
+    val keyId: String
+)
 
 data class LoginUiState(
     val username: String = "",

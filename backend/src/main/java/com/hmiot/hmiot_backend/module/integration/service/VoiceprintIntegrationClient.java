@@ -8,10 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 
@@ -22,15 +18,13 @@ public class VoiceprintIntegrationClient {
 
     public VoiceprintIntegrationClient(@Value("${hmiot.integrations.voiceprint-service-url:http://localhost:5003}") String voiceprintServiceUrl, RestClient.Builder restClientBuilder) {
         this.voiceprintServiceUrl = voiceprintServiceUrl;
-        this.restClient = voiceprintServiceUrl.startsWith("http://") || voiceprintServiceUrl.startsWith("https://")
-                ? restClientBuilder.baseUrl(voiceprintServiceUrl).build()
-                : null;
+        if (!voiceprintServiceUrl.startsWith("http://") && !voiceprintServiceUrl.startsWith("https://")) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "voiceprint-service-url必须为HTTP(S)地址，禁止mock协议");
+        }
+        this.restClient = restClientBuilder.baseUrl(voiceprintServiceUrl).build();
     }
 
     public HealthResult health() {
-        if (voiceprintServiceUrl.startsWith("mock://")) {
-            return new HealthResult(true, "mock-voiceprint-1.0");
-        }
         HealthResponse response = restClient.get()
                 .uri("/health")
                 .retrieve()
@@ -45,10 +39,6 @@ public class VoiceprintIntegrationClient {
     }
 
     public EnrollResult enroll(Long userId, String username, String audioBase64, Map<String, Object> metadata) {
-        if (voiceprintServiceUrl.startsWith("mock://")) {
-            String digest = sha256(username + ":" + audioBase64);
-            return new EnrollResult("voiceprint-" + userId + "-" + digest.substring(0, 16), digest, "mock-voiceprint", "mock-voiceprint-1.0", new BigDecimal("0.750000"), Map.of("mock", true, "digestPrefix", digest.substring(0, 16)));
-        }
         EnrollResponse response = restClient.post()
                 .uri("/voiceprint/enroll")
                 .body(new EnrollRequest(userId, username, audioBase64, metadata))
@@ -64,12 +54,6 @@ public class VoiceprintIntegrationClient {
     }
 
     public VerifyResult verify(String templateRef, String templateDigest, String audioBase64, BigDecimal threshold, Map<String, Object> metadata) {
-        if (voiceprintServiceUrl.startsWith("mock://")) {
-            boolean verified = !audioBase64.contains("fail");
-            BigDecimal score = verified ? new BigDecimal("0.920000") : new BigDecimal("0.420000");
-            BigDecimal effectiveThreshold = threshold == null ? new BigDecimal("0.750000") : threshold;
-            return new VerifyResult(UUID.randomUUID().toString(), score.compareTo(effectiveThreshold) >= 0, score, effectiveThreshold, score.compareTo(effectiveThreshold) >= 0 ? null : "声纹相似度低于阈值", "mock-voiceprint", "mock-voiceprint-1.0", Map.of("mock", true, "verified", verified));
-        }
         VerifyResponse response = restClient.post()
                 .uri("/voiceprint/verify")
                 .body(new VerifyRequest(templateRef, templateDigest, audioBase64, threshold, metadata))
@@ -87,15 +71,6 @@ public class VoiceprintIntegrationClient {
 
     public String targetSystem() {
         return voiceprintServiceUrl;
-    }
-
-    private String sha256(String value) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException exception) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "SHA-256算法不可用");
-        }
     }
 
     private record HealthResponse(Boolean healthy, String model_version) {

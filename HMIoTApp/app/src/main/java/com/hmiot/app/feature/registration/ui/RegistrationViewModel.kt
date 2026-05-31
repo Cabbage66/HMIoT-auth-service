@@ -26,6 +26,8 @@ class RegistrationViewModel(
     fun updatePhone(value: String) = _state.update { it.copy(phone = value) }
     fun updateEmail(value: String) = _state.update { it.copy(email = value) }
     fun updateIdCardNo(value: String) = _state.update { it.copy(idCardNo = value) }
+    fun updateVoiceprintAudio(value: String) = _state.update { it.copy(voiceprintAudioBase64 = value) }
+    fun updateFaceImage(value: String) = _state.update { it.copy(faceImageBase64 = value) }
 
     fun submit() {
         val s = _state.value
@@ -41,7 +43,12 @@ class RegistrationViewModel(
                 realName = s.realName.trim(),
                 phone = s.phone.ifBlank { null },
                 email = s.email.ifBlank { null },
-                idCardNo = s.idCardNo.ifBlank { null }
+                idCardNo = s.idCardNo.ifBlank { null },
+                voiceprintAudioBase64 = s.voiceprintAudioBase64.ifBlank { null },
+                voiceprintAudioFormat = if (s.voiceprintAudioBase64.isBlank()) null else "wav",
+                voiceprintSampleRate = if (s.voiceprintAudioBase64.isBlank()) null else 16000,
+                faceImageBase64 = s.faceImageBase64.ifBlank { null },
+                faceImageFormat = if (s.faceImageBase64.isBlank()) null else "jpeg"
             )
             when (val result = repository.submit(request)) {
                 is ApiResult.Success -> _state.update {
@@ -88,6 +95,8 @@ data class RegistrationUiState(
     val phone: String = "",
     val email: String = "",
     val idCardNo: String = "",
+    val voiceprintAudioBase64: String = "",
+    val faceImageBase64: String = "",
     val loading: Boolean = false,
     val info: String? = null,
     val error: String? = null,
