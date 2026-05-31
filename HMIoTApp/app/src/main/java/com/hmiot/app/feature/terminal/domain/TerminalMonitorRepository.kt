@@ -54,6 +54,7 @@ class TerminalMonitorRepository(
 
     suspend fun recentEvents(): ApiResult<List<TerminalEventResponse>> = runApi { api.recent() }
     suspend fun trustCheck(): ApiResult<TrustCheckResponse> = runApi { api.trustCheck(TrustCheckRequest()) }
+    fun collectSecuritySnapshot(): TerminalSecuritySnapshot = collector.collectSecuritySnapshot()
 
     private suspend fun <T> runApi(block: suspend () -> ApiEnvelope<T>): ApiResult<T> {
         return try {

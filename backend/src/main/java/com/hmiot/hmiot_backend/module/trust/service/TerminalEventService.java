@@ -33,10 +33,12 @@ public class TerminalEventService {
     private static final Set<String> SENSITIVE_KEY_MARKERS = Set.of("password", "passwd", "secret", "token", "privatekey", "private_key", "rawaudio", "raw_audio", "video", "image", "sample", "biometric", "fingerprint");
 
     private final TerminalEventMapper terminalEventMapper;
+    private final TerminalEventFileLogService terminalEventFileLogService;
     private final ObjectMapper objectMapper;
 
-    public TerminalEventService(TerminalEventMapper terminalEventMapper, ObjectMapper objectMapper) {
+    public TerminalEventService(TerminalEventMapper terminalEventMapper, TerminalEventFileLogService terminalEventFileLogService, ObjectMapper objectMapper) {
         this.terminalEventMapper = terminalEventMapper;
+        this.terminalEventFileLogService = terminalEventFileLogService;
         this.objectMapper = objectMapper;
     }
 
@@ -57,6 +59,7 @@ public class TerminalEventService {
         event.setNormalizedPayload(toJson(normalized));
         event.setReportedAt(LocalDateTime.now());
         terminalEventMapper.insert(event);
+        terminalEventFileLogService.logEventText(currentUser.terminalId(), event.getEventType(), event.getEventLevel(), payload, normalized);
         return toVO(event, true);
     }
 

@@ -13,6 +13,8 @@ public record TrustAssessmentCheckResponse(
         String decision,
         String action,
         String failReason,
-        LocalDateTime assessedAt
+        LocalDateTime assessedAt,
+        String requestLogPath,
+        String resultLogPath
 ) {
 }

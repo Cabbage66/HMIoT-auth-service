@@ -26,9 +26,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,8 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -75,28 +70,46 @@ data class InternalIdentityUiData(
     val certificateNo: String = "CERT-202605290001"
 )
 
+data class TrustDashboardUiData(
+    val trustScore: Int = 88,
+    val trustLevelLabel: String = "高信任等级",
+    val trustLevelColor: Color = Color(0xFF087F5B),
+    val trustLevelBg: Color = Green.copy(alpha = 0.12f),
+    val riskLevel: String = "LOW",
+    val decision: String = "ALLOW",
+    val evaluatedAtText: String = "刚刚评估",
+    val summaryText: String = "当前设备、账号与生物特征状态稳定，可访问已授权应用。",
+    val deviceTrustText: String = "96%",
+    val behaviorText: String = "82%",
+    val requestIdText: String = "",
+    val resultLogPathText: String = ""
+)
+
+data class SecurityCategoryUiData(
+    val softwareBadge: String = "正常",
+    val softwareDesc: String = "应用签名、运行版本、运行环境均通过检测。",
+    val hardwareBadge: String = "可信",
+    val hardwareDesc: String = "设备指纹、传感器、安全芯片与本机标识可信。",
+    val softwareLines: List<String> = emptyList(),
+    val hardwareLines: List<String> = emptyList()
+)
+
 @Composable
 fun InternalSystemScreen(
     profile: InternalIdentityUiData = InternalIdentityUiData(),
     appsCountLabel: String = "8 个",
+    trustDashboard: TrustDashboardUiData = TrustDashboardUiData(),
+    securityCategory: SecurityCategoryUiData = SecurityCategoryUiData(),
     actionInfo: String? = null,
     actionError: String? = null,
-    profileEditDialogVisible: Boolean = false,
-    profileEditSaving: Boolean = false,
-    profileEditError: String? = null,
     onLogout: () -> Unit,
     onAccessApp: (String) -> Unit,
     onRunTrustCheck: () -> Unit,
     onRunReleaseCheck: () -> Unit,
     onSyncPolicy: () -> Unit,
     onRunSecurityCheck: () -> Unit,
-    onManageFingerprint: () -> Unit,
-    onManageFace: () -> Unit,
-    onManageVoiceprint: () -> Unit,
-    onGoCertificateCenter: () -> Unit,
-    onOpenProfileEdit: () -> Unit = {},
-    onDismissProfileEdit: () -> Unit = {},
-    onSubmitProfileEdit: (realName: String, phone: String, email: String, idCardNo: String) -> Unit = { _, _, _, _ -> }
+    onBiometricTip: () -> Unit,
+    onGoCertificateCenter: () -> Unit
 ) {
     var tab by remember { mutableStateOf("首页") }
     InternalSystemPureUiApp {
@@ -105,14 +118,14 @@ fun InternalSystemScreen(
                 when (tab) {
                     "首页" -> HomePageUi(
                         username = profile.username,
+                        trustDashboard = trustDashboard,
+                        securityCategory = securityCategory,
                         actionInfo = actionInfo,
                         actionError = actionError,
                         onLogout = onLogout,
                         onAccessApp = onAccessApp,
                         onRunSecurityCheck = onRunSecurityCheck,
-                        onManageFingerprint = onManageFingerprint,
-                        onManageFace = onManageFace,
-                        onManageVoiceprint = onManageVoiceprint
+                        onBiometricTip = onBiometricTip
                     )
                     "应用" -> AppsPageUi(
                         appsCountLabel = appsCountLabel,
@@ -123,6 +136,7 @@ fun InternalSystemScreen(
                         onRunReleaseCheck = onRunReleaseCheck
                     )
                     "安全" -> SecurityPageUi(
+                        securityCategory = securityCategory,
                         actionInfo = actionInfo,
                         actionError = actionError,
                         onRunSecurityCheck = onRunSecurityCheck,
@@ -132,25 +146,14 @@ fun InternalSystemScreen(
                         profile = profile,
                         actionInfo = actionInfo,
                         actionError = actionError,
-                        onOpenProfileEdit = onOpenProfileEdit,
-                        onManageFingerprint = onManageFingerprint,
-                        onManageFace = onManageFace,
-                        onManageVoiceprint = onManageVoiceprint,
+                        onRunReleaseCheck = onRunReleaseCheck,
+                        onBiometricTip = onBiometricTip,
                         onGoCertificateCenter = onGoCertificateCenter
                     )
                 }
             }
             BottomNavigationUi(selectedTab = tab, onTabChange = { tab = it })
         }
-    }
-    if (profileEditDialogVisible) {
-        ProfileEditDialog(
-            profile = profile,
-            saving = profileEditSaving,
-            error = profileEditError,
-            onDismiss = onDismissProfileEdit,
-            onSubmit = onSubmitProfileEdit
-        )
     }
 }
 
@@ -302,14 +305,14 @@ private fun PageScaffold(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 private fun HomePageUi(
     username: String,
+    trustDashboard: TrustDashboardUiData,
+    securityCategory: SecurityCategoryUiData,
     actionInfo: String?,
     actionError: String?,
     onLogout: () -> Unit,
     onAccessApp: (String) -> Unit,
     onRunSecurityCheck: () -> Unit,
-    onManageFingerprint: () -> Unit,
-    onManageFace: () -> Unit,
-    onManageVoiceprint: () -> Unit
+    onBiometricTip: () -> Unit
 ) {
     PageScaffold {
         TopTitleBar(
@@ -320,7 +323,7 @@ private fun HomePageUi(
             onClick = onLogout
         )
 
-        TrustDashboardCard()
+        TrustDashboardCard(trustDashboard)
         ActionTip(actionInfo, actionError)
 
         SectionTitleBar(title = "当前系统安全情况", note = "2 项检测")
@@ -331,8 +334,8 @@ private fun HomePageUi(
         ) {
             SecurityStatusCard(
                 title = "软件状态",
-                description = "应用完整性、版本与运行环境状态良好。",
-                badge = "正常",
+                description = securityCategory.softwareDesc,
+                badge = securityCategory.softwareBadge,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
@@ -343,8 +346,8 @@ private fun HomePageUi(
 
             SecurityStatusCard(
                 title = "硬件状态",
-                description = "设备指纹、传感器与安全芯片检查通过。",
-                badge = "可信",
+                description = securityCategory.hardwareDesc,
+                badge = securityCategory.hardwareBadge,
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
@@ -373,7 +376,7 @@ private fun HomePageUi(
                 badgeType = BadgeType.Success,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
-                onClick = onManageFingerprint
+                onClick = onBiometricTip
             ) {
                 FingerprintIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -387,7 +390,7 @@ private fun HomePageUi(
                 badgeType = BadgeType.Warning,
                 iconColor = Purple,
                 iconBg = Purple.copy(alpha = 0.10f),
-                onClick = onManageFace
+                onClick = onBiometricTip
             ) {
                 FaceIcon(Modifier.size(23.dp), Purple)
             }
@@ -401,7 +404,7 @@ private fun HomePageUi(
                 badgeType = BadgeType.Success,
                 iconColor = Orange,
                 iconBg = Orange.copy(alpha = 0.10f),
-                onClick = onManageVoiceprint
+                onClick = onBiometricTip
             ) {
                 VoiceIcon(Modifier.size(23.dp), Orange)
             }
@@ -462,6 +465,7 @@ private fun AppsPageUi(
 
 @Composable
 private fun SecurityPageUi(
+    securityCategory: SecurityCategoryUiData,
     actionInfo: String?,
     actionError: String?,
     onRunSecurityCheck: () -> Unit,
@@ -477,8 +481,8 @@ private fun SecurityPageUi(
         ) {
             SecurityStatusCard(
                 title = "软件状态",
-                description = "应用签名、运行版本、运行环境均通过检测。",
-                badge = "正常",
+                description = securityCategory.softwareDesc,
+                badge = securityCategory.softwareBadge,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
@@ -489,8 +493,8 @@ private fun SecurityPageUi(
 
             SecurityStatusCard(
                 title = "硬件状态",
-                description = "设备指纹、传感器、安全芯片与本机标识可信。",
-                badge = "可信",
+                description = securityCategory.hardwareDesc,
+                badge = securityCategory.hardwareBadge,
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
@@ -505,8 +509,8 @@ private fun SecurityPageUi(
         GlassPanel {
             MenuRow(
                 title = "完整性检测",
-                subtitle = "未发现篡改风险",
-                badge = "通过",
+                subtitle = securityCategory.softwareLines.firstOrNull() ?: "未发现篡改风险",
+                badge = securityCategory.softwareBadge,
                 badgeType = BadgeType.Success,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
@@ -519,8 +523,8 @@ private fun SecurityPageUi(
 
             MenuRow(
                 title = "系统环境",
-                subtitle = "系统状态稳定，未检测到异常环境",
-                badge = "正常",
+                subtitle = securityCategory.hardwareLines.firstOrNull() ?: "系统状态稳定，未检测到异常环境",
+                badge = securityCategory.hardwareBadge,
                 badgeType = BadgeType.Success,
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
@@ -553,14 +557,12 @@ private fun ProfilePageUi(
     profile: InternalIdentityUiData,
     actionInfo: String?,
     actionError: String?,
-    onOpenProfileEdit: () -> Unit,
-    onManageFingerprint: () -> Unit,
-    onManageFace: () -> Unit,
-    onManageVoiceprint: () -> Unit,
+    onRunReleaseCheck: () -> Unit,
+    onBiometricTip: () -> Unit,
     onGoCertificateCenter: () -> Unit
 ) {
     PageScaffold {
-        TopTitleBar(title = "我的身份", subtitle = "用户信息与身份凭据", buttonText = "编辑", onClick = onOpenProfileEdit)
+        TopTitleBar(title = "我的身份", subtitle = "用户信息与身份凭据", buttonText = "编辑", onClick = onRunReleaseCheck)
         ActionTip(actionInfo, actionError)
 
         InfoPanel(profile)
@@ -575,7 +577,7 @@ private fun ProfilePageUi(
                 badgeType = BadgeType.Success,
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
-                onClick = onManageFingerprint
+                onClick = onBiometricTip
             ) {
                 FingerprintIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -589,7 +591,7 @@ private fun ProfilePageUi(
                 badgeType = BadgeType.Warning,
                 iconColor = Purple,
                 iconBg = Purple.copy(alpha = 0.10f),
-                onClick = onManageFace
+                onClick = onBiometricTip
             ) {
                 FaceIcon(Modifier.size(23.dp), Purple)
             }
@@ -603,7 +605,7 @@ private fun ProfilePageUi(
                 badgeType = BadgeType.Success,
                 iconColor = Orange,
                 iconBg = Orange.copy(alpha = 0.10f),
-                onClick = onManageVoiceprint
+                onClick = onBiometricTip
             ) {
                 VoiceIcon(Modifier.size(23.dp), Orange)
             }
@@ -624,114 +626,6 @@ private fun ProfilePageUi(
         }
 
         Spacer(Modifier.height(18.dp))
-    }
-}
-
-@Composable
-private fun ProfileEditDialog(
-    profile: InternalIdentityUiData,
-    saving: Boolean,
-    error: String?,
-    onDismiss: () -> Unit,
-    onSubmit: (realName: String, phone: String, email: String, idCardNo: String) -> Unit
-) {
-    var realName by remember(profile.realName) { mutableStateOf(profile.realName) }
-    var phone by remember(profile.phoneMasked) { mutableStateOf(profile.phoneMasked) }
-    var email by remember(profile.emailMasked) { mutableStateOf(profile.emailMasked) }
-    var idCardNo by remember(profile.idCardMasked) { mutableStateOf(profile.idCardMasked) }
-
-    AlertDialog(
-        onDismissRequest = {
-            if (!saving) onDismiss()
-        },
-        title = { Text("编辑用户资料", color = TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                ReadonlyLine("用户名（不可修改）", profile.username)
-                ReadonlyLine("证书编号（不可修改）", profile.certificateNo)
-                OutlinedTextField(
-                    value = realName,
-                    onValueChange = { realName = it },
-                    label = { Text("姓名") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = !saving
-                )
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it },
-                    label = { Text("手机号") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = !saving,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-                )
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("邮箱") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = !saving,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                )
-                OutlinedTextField(
-                    value = idCardNo,
-                    onValueChange = { idCardNo = it },
-                    label = { Text("证件号") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = !saving
-                )
-                if (!error.isNullOrBlank()) {
-                    Text(
-                        text = error,
-                        color = Color(0xFFC81E1E),
-                        fontSize = 12.sp
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = !saving && realName.trim().isNotBlank(),
-                onClick = {
-                    onSubmit(
-                        realName.trim(),
-                        phone.trim(),
-                        email.trim(),
-                        idCardNo.trim()
-                    )
-                }
-            ) {
-                Text(if (saving) "保存中..." else "保存")
-            }
-        },
-        dismissButton = {
-            TextButton(enabled = !saving, onClick = onDismiss) {
-                Text("取消")
-            }
-        }
-    )
-}
-
-@Composable
-private fun ReadonlyLine(label: String, value: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFFF3F5F9))
-            .padding(horizontal = 10.dp, vertical = 8.dp)
-    ) {
-        Text(text = label, color = TextMuted, fontSize = 11.sp)
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = value.ifBlank { "-" },
-            color = Color(0xFF1E293B),
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium
-        )
     }
 }
 
@@ -780,7 +674,7 @@ private fun TopTitleBar(
 }
 
 @Composable
-private fun TrustDashboardCard() {
+private fun TrustDashboardCard(data: TrustDashboardUiData) {
     GlassPanel(padding = 20.dp) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -788,7 +682,7 @@ private fun TrustDashboardCard() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("信任监控仪表盘", color = TextMain, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            Text("刚刚评估", color = TextMuted, fontSize = 12.sp)
+            Text(data.evaluatedAtText, color = TextMuted, fontSize = 12.sp)
         }
 
         Spacer(Modifier.height(18.dp))
@@ -797,15 +691,15 @@ private fun TrustDashboardCard() {
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ScoreRing()
+            ScoreRing(data.trustScore)
 
             Spacer(Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                LevelBadge()
+                LevelBadge(data.trustLevelLabel, data.trustLevelColor, data.trustLevelBg)
                 Spacer(Modifier.height(11.dp))
                 Text(
-                    text = "当前设备、账号与生物特征状态稳定，可访问已授权应用。",
+                    text = data.summaryText,
                     color = Color(0xFF667085),
                     fontSize = 13.sp,
                     lineHeight = 20.sp
@@ -814,8 +708,16 @@ private fun TrustDashboardCard() {
                 Spacer(Modifier.height(14.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    MiniMetric("96%", "设备可信度", Modifier.weight(1f))
-                    MiniMetric("82%", "行为一致性", Modifier.weight(1f))
+                    MiniMetric(data.deviceTrustText, "设备可信度", Modifier.weight(1f))
+                    MiniMetric(data.behaviorText, "行为一致性", Modifier.weight(1f))
+                }
+                if (data.requestIdText.isNotBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text("请求ID: ${data.requestIdText}", color = TextMuted, fontSize = 11.sp)
+                }
+                if (data.resultLogPathText.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text("日志: ${data.resultLogPathText}", color = TextMuted, fontSize = 11.sp)
                 }
             }
         }
@@ -823,7 +725,7 @@ private fun TrustDashboardCard() {
 }
 
 @Composable
-private fun ScoreRing() {
+private fun ScoreRing(score: Int) {
     Box(
         modifier = Modifier
             .size(138.dp)
@@ -853,7 +755,7 @@ private fun ScoreRing() {
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("88", color = Color(0xFF101827), fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
+                Text(score.toString(), color = Color(0xFF101827), fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
                 Spacer(Modifier.height(4.dp))
                 Text("信任分", color = Color(0xFF8C94A4), fontSize = 12.sp)
             }
@@ -862,11 +764,11 @@ private fun ScoreRing() {
 }
 
 @Composable
-private fun LevelBadge() {
+private fun LevelBadge(label: String, labelColor: Color, bgColor: Color) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(Green.copy(alpha = 0.12f))
+            .background(bgColor)
             .padding(horizontal = 11.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -875,9 +777,9 @@ private fun LevelBadge() {
             modifier = Modifier
                 .size(7.dp)
                 .clip(CircleShape)
-                .background(Green)
+                .background(labelColor)
         )
-        Text("高信任等级", color = Color(0xFF087F5B), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = labelColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -1497,9 +1399,7 @@ private fun HomePreview() {
         onRunReleaseCheck = {},
         onSyncPolicy = {},
         onRunSecurityCheck = {},
-        onManageFingerprint = {},
-        onManageFace = {},
-        onManageVoiceprint = {},
+        onBiometricTip = {},
         onGoCertificateCenter = {}
     )
 }
@@ -1514,9 +1414,7 @@ private fun AppsPreview() {
         onRunReleaseCheck = {},
         onSyncPolicy = {},
         onRunSecurityCheck = {},
-        onManageFingerprint = {},
-        onManageFace = {},
-        onManageVoiceprint = {},
+        onBiometricTip = {},
         onGoCertificateCenter = {}
     )
 }
@@ -1531,9 +1429,7 @@ private fun SecurityPreview() {
         onRunReleaseCheck = {},
         onSyncPolicy = {},
         onRunSecurityCheck = {},
-        onManageFingerprint = {},
-        onManageFace = {},
-        onManageVoiceprint = {},
+        onBiometricTip = {},
         onGoCertificateCenter = {}
     )
 }
@@ -1548,9 +1444,7 @@ private fun ProfilePreview() {
         onRunReleaseCheck = {},
         onSyncPolicy = {},
         onRunSecurityCheck = {},
-        onManageFingerprint = {},
-        onManageFace = {},
-        onManageVoiceprint = {},
+        onBiometricTip = {},
         onGoCertificateCenter = {}
     )
 }

@@ -1,14 +1,6 @@
 package com.hmiot.app
 
-import android.Manifest
-import android.content.Context
-import android.content.ContextWrapper
-import android.graphics.Bitmap
 import android.os.Bundle
-import android.util.Patterns
-import android.util.Base64
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
@@ -28,24 +20,19 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.identitylogin.InternalIdentityUiData
+import com.example.identitylogin.SecurityCategoryUiData
 import com.example.identitylogin.InternalSystemScreen
+import com.example.identitylogin.TrustDashboardUiData
 import com.hmiot.app.core.network.model.ApiResult
 import com.hmiot.app.feature.auth.ui.LoginScreen
 import com.hmiot.app.feature.auth.ui.LoginViewModelFactory
 import com.hmiot.app.feature.access.data.AppResource
 import com.hmiot.app.feature.certificate.ui.CertificateScreen
 import com.hmiot.app.feature.certificate.ui.CertificateViewModelFactory
-import com.hmiot.app.feature.biometric.data.FingerprintSubmitRequest
-import com.hmiot.app.feature.biometric.domain.FingerprintCryptoManager
-import com.hmiot.app.feature.biometric.domain.FingerprintKeyId
-import com.hmiot.app.feature.biometric.domain.VoiceSampleCollector
-import com.hmiot.app.feature.profile.data.UserProfileResponse
-import com.hmiot.app.feature.profile.data.UserProfileUpdateRequest
 import com.hmiot.app.feature.registration.ui.RegistrationScreen
 import com.hmiot.app.feature.registration.ui.RegistrationViewModelFactory
 import com.hmiot.app.feature.registration.ui.RecordsScreen
 import com.hmiot.app.ui.theme.HMIoTAppTheme
-import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.launch
 
 class MainActivity : FragmentActivity() {
@@ -58,30 +45,15 @@ class MainActivity : FragmentActivity() {
     }
 }
 
-private tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (this) {
-    is FragmentActivity -> this
-    is ContextWrapper -> baseContext.findFragmentActivity()
-    else -> null
-}
-
-private fun Bitmap.toJpegBase64(): String {
-    val output = ByteArrayOutputStream()
-    compress(Bitmap.CompressFormat.JPEG, 90, output)
-    return Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
-}
-
 @Composable
 private fun AppEntry() {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val app = context.applicationContext as HmiotApplication
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as HmiotApplication
     val authRepository = app.appContainer.authRepository
     val registrationRepository = app.appContainer.registrationRepository
     val certificateProfileRepository = app.appContainer.certificateProfileRepository
     val terminalMonitorRepository = app.appContainer.terminalMonitorRepository
     val policyRepository = app.appContainer.policyRepository
     val accessRepository = app.appContainer.accessRepository
-    val biometricRepository = app.appContainer.biometricRepository
-    val userProfileRepository = app.appContainer.userProfileRepository
     val trustGuardRepository = app.appContainer.trustGuardRepository
     val releaseRepository = app.appContainer.releaseValidationRepository
 
@@ -91,40 +63,25 @@ private fun AppEntry() {
 
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
-    val fingerprintCryptoManager = remember { FingerprintCryptoManager() }
     val session by authRepository.session.collectAsState(initial = null)
+    val trustGuardState by trustGuardRepository.state.collectAsState(
+        initial = com.hmiot.app.core.storage.datastore.TrustGuardState(
+            blocked = false,
+            reason = "",
+            updatedAt = "",
+            trustScore = null,
+            trustLevel = null,
+            riskLevel = null,
+            decision = null,
+            requestId = null,
+            requestLogPath = null,
+            resultLogPath = null
+        )
+    )
     val apps = remember { mutableStateListOf<AppResource>() }
     var actionInfo by remember { mutableStateOf<String?>(null) }
     var actionError by remember { mutableStateOf<String?>(null) }
-    var showProfileEditDialog by remember { mutableStateOf(false) }
-    var profileEditSaving by remember { mutableStateOf(false) }
-    var profileEditError by remember { mutableStateOf<String?>(null) }
-    var profileUi by remember {
-        mutableStateOf(
-            InternalIdentityUiData(
-                username = "zhangsan",
-                realName = "张三",
-                phoneMasked = "",
-                emailMasked = "",
-                idCardMasked = "",
-                certificateNo = "CERT-202605290001"
-            )
-        )
-    }
-
-    fun normalize(value: String?): String = value?.trim().orEmpty()
-
-    fun mergeProfile(sessionFallback: com.hmiot.app.core.storage.datastore.LocalSession?, remote: UserProfileResponse?): InternalIdentityUiData {
-        val certificateNo = sessionFallback?.let { "TERMINAL-${it.terminalCode}" } ?: "CERT-202605290001"
-        return InternalIdentityUiData(
-            username = normalize(remote?.username).ifBlank { sessionFallback?.username ?: "zhangsan" },
-            realName = normalize(remote?.realName).ifBlank { sessionFallback?.realName ?: "张三" },
-            phoneMasked = normalize(remote?.phone),
-            emailMasked = normalize(remote?.email),
-            idCardMasked = normalize(remote?.idCardNo),
-            certificateNo = certificateNo
-        )
-    }
+    var securityCategory by remember { mutableStateOf(SecurityCategoryUiData()) }
 
     suspend fun loadAppsIfNeeded() {
         if (apps.isNotEmpty()) return
@@ -152,202 +109,8 @@ private fun AppEntry() {
         return apps.getOrNull(index % apps.size)
     }
 
-    suspend fun enrollOrRecollectVoiceprint() {
-        actionInfo = "正在采集3秒声纹样本..."
-        actionError = null
-        val sample = runCatching { VoiceSampleCollector().collectBase64Wav(3) }
-            .getOrElse { ex ->
-                actionError = "声纹采集失败：${ex.message}"
-                return
-            }
-        val templates = when (val result = biometricRepository.voiceTemplates()) {
-            is ApiResult.Success -> result.data
-            is ApiResult.Failure -> {
-                actionError = result.message
-                return
-            }
-        }
-        val hasVoiceTemplate = templates.any { it.templateStatus == "ACTIVE" }
-        val action = if (hasVoiceTemplate) "补采替换" else "注册绑定"
-        val submitResult = if (hasVoiceTemplate) {
-            biometricRepository.voiceRecollect(sample)
-        } else {
-            biometricRepository.voiceEnroll(sample)
-        }
-        when (submitResult) {
-            is ApiResult.Success -> {
-                val template = submitResult.data
-                val healthText = when (val health = biometricRepository.voiceHealth()) {
-                    is ApiResult.Success -> "，模型=${health.data.modelVersion}"
-                    is ApiResult.Failure -> ""
-                }
-                actionInfo = "声纹${action}提交成功：模板#${template.id}，审核=${template.auditStatus}${healthText}"
-                actionError = null
-            }
-            is ApiResult.Failure -> {
-                actionError = "声纹${action}失败：${submitResult.message}"
-            }
-        }
-    }
-
-    suspend fun enrollOrRecollectFingerprint() {
-        val currentSession = session
-        if (currentSession == null) {
-            actionError = "请先登录后再管理指纹"
-            return
-        }
-        val activity = context.findFragmentActivity()
-        if (activity == null) {
-            actionError = "当前页面上下文不支持指纹采集"
-            return
-        }
-        val keyId = FingerprintKeyId.fromUsername(currentSession.username)
-
-        val templates = when (val result = biometricRepository.fingerprintTemplates()) {
-            is ApiResult.Success -> result.data
-            is ApiResult.Failure -> {
-                actionError = result.message
-                return
-            }
-        }
-        val hasActive = templates.any { it.templateStatus == "ACTIVE" }
-        val purpose = if (hasActive) "RECOLLECT" else "ENROLL"
-        val action = if (hasActive) "补采替换" else "注册绑定"
-
-        val challenge = when (val result = biometricRepository.fingerprintChallenge(purpose = purpose, keyId = keyId)) {
-            is ApiResult.Success -> result.data
-            is ApiResult.Failure -> {
-                actionError = "指纹${action}挑战获取失败：${result.message}"
-                return
-            }
-        }
-
-        actionInfo = "请完成系统指纹验证，正在签名提交..."
-        val signature = fingerprintCryptoManager.signChallengeWithBiometric(
-            activity = activity,
-            keyId = challenge.keyId ?: keyId,
-            challenge = challenge.challenge,
-            title = "指纹$action",
-            subtitle = "验证后提交模板到服务端"
-        ).getOrElse { ex ->
-            actionError = "指纹签名失败：${ex.message}"
-            return
-        }
-
-        val request = FingerprintSubmitRequest(
-            sessionId = challenge.sessionId,
-            challengeId = challenge.challengeId,
-            keyId = signature.keyId,
-            publicKeyBase64 = signature.publicKeyBase64,
-            signatureBase64 = signature.signatureBase64,
-            signAlgorithm = signature.signAlgorithm,
-            metadata = mapOf(
-                "clientType" to "ANDROID",
-                "osVersion" to (android.os.Build.VERSION.RELEASE ?: "unknown")
-            )
-        )
-        val submitResult = if (hasActive) {
-            biometricRepository.fingerprintRecollect(request)
-        } else {
-            biometricRepository.fingerprintEnroll(request)
-        }
-
-        when (submitResult) {
-            is ApiResult.Success -> {
-                val template = submitResult.data
-                val healthText = when (val health = biometricRepository.fingerprintHealth()) {
-                    is ApiResult.Success -> "，模型=${health.data.modelVersion}"
-                    is ApiResult.Failure -> ""
-                }
-                actionInfo = "指纹${action}提交成功：模板#${template.id}，审核=${template.auditStatus}${healthText}"
-                actionError = null
-            }
-            is ApiResult.Failure -> {
-                actionError = "指纹${action}失败：${submitResult.message}"
-            }
-        }
-    }
-
-    suspend fun enrollOrRecollectFace(imageBase64: String, imageFormat: String = "jpeg") {
-        val currentSession = session
-        if (currentSession == null) {
-            actionError = "请先登录后再管理人脸"
-            return
-        }
-        val templates = when (val result = biometricRepository.faceTemplates()) {
-            is ApiResult.Success -> result.data
-            is ApiResult.Failure -> {
-                actionError = result.message
-                return
-            }
-        }
-        val hasActive = templates.any { it.templateStatus == "ACTIVE" }
-        val action = if (hasActive) "补采替换" else "注册绑定"
-        val submitResult = if (hasActive) {
-            biometricRepository.faceRecollect(imageBase64, imageFormat)
-        } else {
-            biometricRepository.faceEnroll(imageBase64, imageFormat)
-        }
-        when (submitResult) {
-            is ApiResult.Success -> {
-                val template = submitResult.data
-                val healthText = when (val health = biometricRepository.faceHealth()) {
-                    is ApiResult.Success -> "，模型=${health.data.modelVersion}"
-                    is ApiResult.Failure -> ""
-                }
-                actionInfo = "人脸${action}提交成功：模板#${template.id}，审核=${template.auditStatus}${healthText}"
-                actionError = null
-            }
-            is ApiResult.Failure -> {
-                actionError = "人脸${action}失败：${submitResult.message}"
-            }
-        }
-    }
-
-    val audioPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (!granted) {
-            actionError = "未授予麦克风权限，无法采集声纹"
-            return@rememberLauncherForActivityResult
-        }
-        scope.launch {
-            enrollOrRecollectVoiceprint()
-        }
-    }
-    val faceCaptureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
-        if (bitmap == null) {
-            actionError = "未获取到人脸图像"
-            return@rememberLauncherForActivityResult
-        }
-        scope.launch {
-            actionInfo = "人脸采集完成，正在提交模型比对..."
-            actionError = null
-            enrollOrRecollectFace(bitmap.toJpegBase64())
-        }
-    }
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (!granted) {
-            actionError = "未授予相机权限，无法采集人脸"
-            return@rememberLauncherForActivityResult
-        }
-        faceCaptureLauncher.launch(null)
-    }
-
     LaunchedEffect(Unit) {
         loadAppsIfNeeded()
-    }
-    LaunchedEffect(session?.userId, session?.terminalCode) {
-        val currentSession = session
-        if (currentSession == null) return@LaunchedEffect
-        profileUi = mergeProfile(currentSession, null)
-        when (val result = userProfileRepository.me()) {
-            is ApiResult.Success -> {
-                profileUi = mergeProfile(currentSession, result.data)
-                actionError = null
-            }
-            is ApiResult.Failure -> {
-                actionError = result.message
-            }
-        }
     }
 
     Scaffold(modifier = Modifier.fillMaxSize()) {
@@ -379,13 +142,16 @@ private fun AppEntry() {
             }
             composable("home") {
                 InternalSystemScreen(
-                    profile = profileUi,
+                    profile = InternalIdentityUiData(
+                        username = session?.username ?: "zhangsan",
+                        realName = session?.realName ?: "张三",
+                        certificateNo = session?.let { "TERMINAL-${it.terminalCode}" } ?: "CERT-202605290001"
+                    ),
                     appsCountLabel = "${apps.size} 个",
+                    trustDashboard = trustDashboardFromState(trustGuardState),
+                    securityCategory = securityCategory,
                     actionInfo = actionInfo,
                     actionError = actionError,
-                    profileEditDialogVisible = showProfileEditDialog,
-                    profileEditSaving = profileEditSaving,
-                    profileEditError = profileEditError,
                     onLogout = {
                         scope.launch {
                             authRepository.logout()
@@ -460,6 +226,8 @@ private fun AppEntry() {
                     },
                     onRunSecurityCheck = {
                         scope.launch {
+                            val snapshot = terminalMonitorRepository.collectSecuritySnapshot()
+                            securityCategory = securityCategoryFromSnapshot(snapshot)
                             terminalMonitorRepository.collectAndQueue()
                             val flush = terminalMonitorRepository.flushQueue()
                             val trust = trustGuardRepository.evaluateAndUpdate()
@@ -469,60 +237,81 @@ private fun AppEntry() {
                             actionError = if (flush is ApiResult.Failure) flush.message else if (trust is ApiResult.Failure) trust.message else null
                         }
                     },
-                    onManageFingerprint = {
-                        scope.launch { enrollOrRecollectFingerprint() }
+                    onBiometricTip = {
+                        actionInfo = "生物特征功能已接入登录与注册流程。"
+                        actionError = null
                     },
-                    onManageFace = {
-                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-                    },
-                    onManageVoiceprint = {
-                        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                    },
-                    onGoCertificateCenter = { navController.navigate("certificate") },
-                    onOpenProfileEdit = {
-                        profileEditError = null
-                        showProfileEditDialog = true
-                    },
-                    onDismissProfileEdit = {
-                        profileEditError = null
-                        showProfileEditDialog = false
-                    },
-                    onSubmitProfileEdit = { realName, phone, email, idCardNo ->
-                        scope.launch {
-                            val emailInput = email.trim()
-                            if (emailInput.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(emailInput).matches()) {
-                                profileEditError = "邮箱格式不正确"
-                                return@launch
-                            }
-                            profileEditError = null
-                            profileEditSaving = true
-                            when (
-                                val result = userProfileRepository.updateMe(
-                                    UserProfileUpdateRequest(
-                                        realName = realName.trim(),
-                                        phone = phone.trim().ifBlank { null },
-                                        email = emailInput.ifBlank { null },
-                                        idCardNo = idCardNo.trim().ifBlank { null }
-                                    )
-                                )
-                            ) {
-                                is ApiResult.Success -> {
-                                    profileUi = mergeProfile(session, result.data)
-                                    actionInfo = "资料更新成功"
-                                    actionError = null
-                                    profileEditError = null
-                                    showProfileEditDialog = false
-                                }
-                                is ApiResult.Failure -> {
-                                    profileEditError = result.message
-                                }
-                            }
-                            profileEditSaving = false
-                        }
-                    }
+                    onGoCertificateCenter = { navController.navigate("certificate") }
                 )
             }
             composable("certificate") { CertificateScreen(factory = certificateFactory, onBack = { navController.navigate("login") }) }
         }
     }
+}
+
+private fun trustDashboardFromState(state: com.hmiot.app.core.storage.datastore.TrustGuardState): TrustDashboardUiData {
+    val score = (state.trustScore ?: 88.0).toInt().coerceIn(0, 100)
+    val risk = (state.riskLevel ?: "LOW").uppercase()
+    val blocked = state.blocked
+    val levelLabel = when (state.trustLevel ?: 0) {
+        3 -> "高信任等级"
+        2 -> "中信任等级"
+        1 -> "低信任等级"
+        else -> if (blocked) "风险阻断" else "待评估"
+    }
+    val levelColor = if (blocked || risk == "HIGH") androidx.compose.ui.graphics.Color(0xFFC92A2A)
+    else if (risk == "MEDIUM") androidx.compose.ui.graphics.Color(0xFFB45309)
+    else androidx.compose.ui.graphics.Color(0xFF087F5B)
+    val levelBg = levelColor.copy(alpha = 0.12f)
+    val summary = if (blocked) {
+        "当前终端处于风险阻断状态，请完成二次认证或联系管理员。"
+    } else {
+        "当前设备、账号与生物特征状态稳定，可访问已授权应用。"
+    }
+    return TrustDashboardUiData(
+        trustScore = score,
+        trustLevelLabel = levelLabel,
+        trustLevelColor = levelColor,
+        trustLevelBg = levelBg,
+        riskLevel = risk,
+        decision = state.decision ?: if (blocked) "DENY" else "ALLOW",
+        evaluatedAtText = if (state.updatedAt.isBlank()) "未评估" else state.updatedAt,
+        summaryText = summary,
+        deviceTrustText = "${score.coerceIn(1, 99)}%",
+        behaviorText = "${((state.trustLevel ?: 0) * 28 + 16).coerceIn(1, 99)}%",
+        requestIdText = state.requestId.orEmpty(),
+        resultLogPathText = state.resultLogPath.orEmpty()
+    )
+}
+
+private fun securityCategoryFromSnapshot(snapshot: com.hmiot.app.feature.terminal.domain.TerminalSecuritySnapshot): SecurityCategoryUiData {
+    val sw = snapshot.software
+    val hw = snapshot.hardware
+    val rooted = sw["isRooted"] == true
+    val emulator = sw["isEmulator"] == true
+    val adb = sw["isAdbEnabled"] == true
+    val hook = sw["hasHookRisk"] == true
+    val swBadge = if (rooted || emulator || hook) "高风险" else if (adb) "告警" else "正常"
+    val hwBadge = if (hw["secureHardware"] == true) "可信" else "一般"
+    val swDesc = "Root=$rooted, 模拟器=$emulator, ADB=$adb, Hook=$hook"
+    val hwDesc = "指纹=${hw["fingerprintSupported"]}, 人脸=${hw["faceSupported"]}, 声纹=${hw["voiceprintSupported"]}, 安全硬件=${hw["secureHardware"]}"
+    val swLines = listOf(
+        "系统完整性: rooted=$rooted, os签名可信=${sw["isOsSignatureTrusted"]}",
+        "运行环境: emulator=$emulator, adb=$adb, hookRisk=$hook",
+        "网络安全: ${sw["connectionType"]}, vpn=${sw["isVpnActive"]}, wifiSecured=${sw["isWifiSecured"]}",
+        "应用风险: highRiskApps=${sw["hasHighRiskApps"]}, appSig=${sw["isAppSignatureTrusted"]}, unknownSources=${sw["allowUnknownSources"]}"
+    )
+    val hwLines = listOf(
+        "设备标识: deviceId=${hw["deviceId"]}, androidId=${hw["androidId"]}",
+        "终端上下文: appVersion=${hw["appVersion"]}, ip=${hw["clientIp"]}, location=${hw["location"]}",
+        "生物能力: fp=${hw["fingerprintSupported"]}, face=${hw["faceSupported"]}, voice=${hw["voiceprintSupported"]}"
+    )
+    return SecurityCategoryUiData(
+        softwareBadge = swBadge,
+        softwareDesc = swDesc,
+        hardwareBadge = hwBadge,
+        hardwareDesc = hwDesc,
+        softwareLines = swLines,
+        hardwareLines = hwLines
+    )
 }

@@ -59,9 +59,10 @@ public class TrustAssessmentService {
     private final AppResourceService appResourceService;
     private final UebaIntegrationClient uebaIntegrationClient;
     private final ExternalIntegrationCallService externalIntegrationCallService;
+    private final TrustAssessmentFileLogService trustAssessmentFileLogService;
     private final ObjectMapper objectMapper;
 
-    public TrustAssessmentService(TrustAssessmentRequestMapper trustAssessmentRequestMapper, TrustAssessmentResultMapper trustAssessmentResultMapper, TerminalEventService terminalEventService, SecurityBaselineService securityBaselineService, AppResourceService appResourceService, UebaIntegrationClient uebaIntegrationClient, ExternalIntegrationCallService externalIntegrationCallService, ObjectMapper objectMapper) {
+    public TrustAssessmentService(TrustAssessmentRequestMapper trustAssessmentRequestMapper, TrustAssessmentResultMapper trustAssessmentResultMapper, TerminalEventService terminalEventService, SecurityBaselineService securityBaselineService, AppResourceService appResourceService, UebaIntegrationClient uebaIntegrationClient, ExternalIntegrationCallService externalIntegrationCallService, TrustAssessmentFileLogService trustAssessmentFileLogService, ObjectMapper objectMapper) {
         this.trustAssessmentRequestMapper = trustAssessmentRequestMapper;
         this.trustAssessmentResultMapper = trustAssessmentResultMapper;
         this.terminalEventService = terminalEventService;
@@ -69,6 +70,7 @@ public class TrustAssessmentService {
         this.appResourceService = appResourceService;
         this.uebaIntegrationClient = uebaIntegrationClient;
         this.externalIntegrationCallService = externalIntegrationCallService;
+        this.trustAssessmentFileLogService = trustAssessmentFileLogService;
         this.objectMapper = objectMapper;
     }
 
@@ -169,6 +171,7 @@ public class TrustAssessmentService {
         List<TerminalEvent> events = terminalEventService.recentEvents(currentUser.userId(), currentUser.terminalId(), 50);
         List<SecurityBaselineVO> baselines = securityBaselineService.listEnabledForClient(currentUser.clientType(), currentUser.terminalId());
         Map<String, Object> input = inputPayload(effectiveRequestId, app, currentUser, policy, events, baselines, forAccess);
+        String requestLogPath = trustAssessmentFileLogService.writeRequestLog(effectiveRequestId, input);
         TrustAssessmentRequest assessmentRequest = new TrustAssessmentRequest();
         assessmentRequest.setRequestId(effectiveRequestId);
         assessmentRequest.setUserId(currentUser.userId());
@@ -183,8 +186,23 @@ public class TrustAssessmentService {
         LocalDateTime startedAt = LocalDateTime.now();
         try {
             AssessmentResult uebaResult = uebaIntegrationClient.assessTrust(input);
+            AssessmentResult adjustedResult = adjustDecision(uebaResult, baselines, app, policy);
+            Map<String, Object> resultLogPayload = new LinkedHashMap<>();
+            resultLogPayload.put("requestLogPath", requestLogPath);
+            resultLogPayload.put("modelSource", adjustedResult.modelSource());
+            resultLogPayload.put("modelVersion", adjustedResult.modelVersion());
+            resultLogPayload.put("trustScore", adjustedResult.trustScore());
+            resultLogPayload.put("trustLevel", adjustedResult.trustLevel());
+            resultLogPayload.put("riskLevel", adjustedResult.riskLevel());
+            resultLogPayload.put("decision", adjustedResult.decision());
+            resultLogPayload.put("rejectReason", adjustedResult.rejectReason() == null ? "" : adjustedResult.rejectReason());
+            resultLogPayload.put("anomaly", adjustedResult.anomaly());
+            resultLogPayload.put("anomalyIndicators", adjustedResult.anomalyIndicators() == null ? Map.of() : adjustedResult.anomalyIndicators());
+            resultLogPayload.put("alerts", adjustedResult.alerts() == null ? List.of() : adjustedResult.alerts());
+            resultLogPayload.put("rawResponse", adjustedResult.rawResponse() == null ? Map.of() : adjustedResult.rawResponse());
+            String resultLogPath = trustAssessmentFileLogService.writeResultLog(effectiveRequestId, resultLogPayload);
             externalIntegrationCallService.recordSuccess("UEBA_TRUST_ASSESSMENT", uebaIntegrationClient.targetSystem(), effectiveRequestId, requestSummary(assessmentRequest), responseSummary(uebaResult), startedAt);
-            TrustAssessmentResult result = persistResult(assessmentRequest, adjustDecision(uebaResult, baselines, app, policy));
+            TrustAssessmentResult result = persistResult(assessmentRequest, adjustedResult, requestLogPath, resultLogPath);
             assessmentRequest.setModelSource(uebaResult.modelSource());
             assessmentRequest.setModelVersion(uebaResult.modelVersion());
             trustAssessmentRequestMapper.updateById(assessmentRequest);
@@ -209,6 +227,8 @@ public class TrustAssessmentService {
         trustAssessmentRequestMapper.insert(assessmentRequest);
         externalIntegrationCallService.recordFailure("TRUST_ASSESSMENT_DEGRADED", uebaIntegrationClient.targetSystem(), requestId, requestSummary(assessmentRequest), failReason, LocalDateTime.now());
 
+        String requestLogPath = trustAssessmentFileLogService.writeRequestLog(requestId, Map.of("degraded", true, "failReason", failReason == null ? "" : failReason));
+        String resultLogPath = trustAssessmentFileLogService.writeResultLog(requestId, Map.of("degraded", true, "failReason", failReason == null ? "" : failReason, "decision", WARN));
         TrustAssessmentResult result = new TrustAssessmentResult();
         result.setRequestId(assessmentRequest.getId());
         result.setTrustScore(BigDecimal.valueOf(policy == null ? 1 : Math.max(1, policy.minTrustLevel())));
@@ -219,7 +239,7 @@ public class TrustAssessmentService {
         result.setAlerts(toJson(List.of("UEBA 服务不可用，按低安全等级降级策略继续")));
         result.setDecision(WARN);
         result.setRejectReason(failReason);
-        result.setRawResponse(toJson(Map.of("degraded", true, "failReason", failReason == null ? "" : failReason)));
+        result.setRawResponse(toJson(Map.of("degraded", true, "failReason", failReason == null ? "" : failReason, "requestLogPath", requestLogPath, "resultLogPath", resultLogPath)));
         result.setAssessedAt(LocalDateTime.now());
         trustAssessmentResultMapper.insert(result);
         return toVO(assessmentRequest, result, false);
@@ -305,7 +325,7 @@ public class TrustAssessmentService {
         return new AssessmentResult(result.requestId(), result.trustScore(), result.trustLevel(), result.riskLevel(), result.anomaly(), decision, rejectReason, result.modelSource(), result.modelVersion(), result.anomalyIndicators(), result.alerts(), result.rawResponse(), result.assessedAt());
     }
 
-    private TrustAssessmentResult persistResult(TrustAssessmentRequest assessmentRequest, AssessmentResult assessmentResult) {
+    private TrustAssessmentResult persistResult(TrustAssessmentRequest assessmentRequest, AssessmentResult assessmentResult, String requestLogPath, String resultLogPath) {
         TrustAssessmentResult result = new TrustAssessmentResult();
         result.setRequestId(assessmentRequest.getId());
         result.setTrustScore(assessmentResult.trustScore());
@@ -316,7 +336,11 @@ public class TrustAssessmentService {
         result.setAlerts(toJson(assessmentResult.alerts()));
         result.setDecision(assessmentResult.decision());
         result.setRejectReason(assessmentResult.rejectReason());
-        result.setRawResponse(toJson(assessmentResult.rawResponse()));
+        Map<String, Object> rawResponse = new LinkedHashMap<>();
+        rawResponse.putAll(assessmentResult.rawResponse() == null ? Map.of() : assessmentResult.rawResponse());
+        rawResponse.put("requestLogPath", requestLogPath);
+        rawResponse.put("resultLogPath", resultLogPath);
+        result.setRawResponse(toJson(rawResponse));
         result.setAssessedAt(assessmentResult.assessedAt() == null ? LocalDateTime.now() : assessmentResult.assessedAt());
         trustAssessmentResultMapper.insert(result);
         return result;
@@ -360,7 +384,22 @@ public class TrustAssessmentService {
 
     private TrustAssessmentCheckResponse toCheckResponse(TrustAssessmentResultVO result) {
         String decision = result.decision() == null ? ALLOW : result.decision();
-        return new TrustAssessmentCheckResponse(result.id(), result.requestId(), ALLOW.equals(decision) || WARN.equals(decision), result.trustScore(), result.trustLevel(), result.riskLevel(), decision, decision, result.rejectReason(), result.assessedAt());
+        String requestLogPath = String.valueOf(result.rawResponse().getOrDefault("requestLogPath", ""));
+        String resultLogPath = String.valueOf(result.rawResponse().getOrDefault("resultLogPath", ""));
+        return new TrustAssessmentCheckResponse(
+                result.id(),
+                result.requestId(),
+                ALLOW.equals(decision) || WARN.equals(decision),
+                result.trustScore(),
+                result.trustLevel(),
+                result.riskLevel(),
+                decision,
+                decision,
+                result.rejectReason(),
+                result.assessedAt(),
+                requestLogPath,
+                resultLogPath
+        );
     }
 
     private boolean failClosed(AppResource app, PolicyResolveResponse policy) {
