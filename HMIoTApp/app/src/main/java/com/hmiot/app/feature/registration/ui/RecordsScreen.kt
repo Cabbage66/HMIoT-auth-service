@@ -50,6 +50,13 @@ fun RecordsScreen(
         if (username.isNotBlank()) {
             vm.updateUsername(username)
             vm.queryProgress()
+        } else {
+            vm.refreshLocalProgress()
+        }
+    }
+    LaunchedEffect(state.localRecords.size, username) {
+        if (username.isBlank()) {
+            vm.refreshLocalProgress()
         }
     }
     val records = state.progressRecords.filter {

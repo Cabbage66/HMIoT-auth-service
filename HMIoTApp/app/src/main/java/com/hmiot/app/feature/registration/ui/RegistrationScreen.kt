@@ -164,8 +164,8 @@ fun RegistrationScreen(
         }
         Spacer(Modifier.height(10.dp))
         Button(onClick = {
-            vm.queryProgress()
-            onViewRecords(state.username.trim())
+            vm.refreshLocalProgress()
+            onViewRecords("")
         }, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF8FAFC), contentColor = Color(0xFF566174))) {
             Text("查看注册记录", fontSize = 14.sp)
         }

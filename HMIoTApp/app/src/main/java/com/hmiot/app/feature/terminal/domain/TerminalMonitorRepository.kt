@@ -16,14 +16,17 @@ class TerminalMonitorRepository(
     private val api: TerminalMonitorApi,
     private val store: AppPreferenceStore,
     private val collector: TerminalStatusCollector,
-    private val cleaner: TerminalPayloadCleaner
+    private val cleaner: TerminalPayloadCleaner,
+    private val fileLogger: TerminalSecurityFileLogger
 ) {
     val pendingEvents: Flow<List<PendingTerminalEvent>> = store.pendingTerminalEvents
 
-    suspend fun collectAndQueue(): ApiResult<Int> {
-        val clean = cleaner.clean(collector.collect())
+    suspend fun collectAndQueue(triggerScene: String = "PERIODIC", appCode: String? = null): ApiResult<Int> {
+        val clean = cleaner.clean(collector.collect(triggerScene, appCode))
+        val localLogPath = fileLogger.append(clean)
+        val logged = if (localLogPath.isBlank()) clean else clean.copy(eventPayload = clean.eventPayload + ("clientLogPath" to localLogPath))
         val existing = store.pendingTerminalEventsSnapshot()
-        val updated = (existing + PendingTerminalEvent(clean.eventType, clean.eventLevel, clean.eventTime, clean.eventPayload)).takeLast(200)
+        val updated = (existing + PendingTerminalEvent(logged.eventType, logged.eventLevel, logged.eventTime, logged.eventPayload)).takeLast(200)
         store.updatePendingTerminalEvents(updated)
         return ApiResult.Success(updated.size, null)
     }
@@ -55,6 +58,7 @@ class TerminalMonitorRepository(
     suspend fun recentEvents(): ApiResult<List<TerminalEventResponse>> = runApi { api.recent() }
     suspend fun trustCheck(): ApiResult<TrustCheckResponse> = runApi { api.trustCheck(TrustCheckRequest()) }
     fun collectSecuritySnapshot(): TerminalSecuritySnapshot = collector.collectSecuritySnapshot()
+    fun localLogFilePath(): String = fileLogger.fixedLogPath()
 
     private suspend fun <T> runApi(block: suspend () -> ApiEnvelope<T>): ApiResult<T> {
         return try {

@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiInfo
+import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
@@ -11,18 +13,22 @@ import android.os.StatFs
 import android.provider.Settings
 import androidx.biometric.BiometricManager
 import androidx.core.content.ContextCompat
+import java.io.File
 import java.net.NetworkInterface
 import java.time.LocalDateTime
 import java.util.Locale
 
 class TerminalStatusCollector(private val context: Context) {
-    fun collect(): TerminalEventLocal {
+    fun collect(triggerScene: String = "PERIODIC", appCode: String? = null): TerminalEventLocal {
         val snapshot = collectSecuritySnapshot()
         return TerminalEventLocal(
             eventType = "TERMINAL_STATUS_SNAPSHOT",
             eventLevel = snapshot.overallLevel,
             eventTime = LocalDateTime.now().toString(),
-            eventPayload = snapshot.toPayload()
+            eventPayload = snapshot.toPayload() + mapOf(
+                "triggerScene" to triggerScene,
+                "appCode" to appCode
+            )
         )
     }
 
@@ -43,9 +49,10 @@ class TerminalStatusCollector(private val context: Context) {
             else -> "OTHER"
         }
         val isVpnActive = caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
-        val isWifiSecured = if (connectionType == "WIFI") true else null
+        val isWifiSecured = if (connectionType == "WIFI") currentWifiSecured() else null
 
         val rooted = isRooted()
+        val bootloaderUnlocked = isBootloaderUnlocked()
         val emulator = isEmulator()
         val adbEnabled = isAdbEnabled()
         val hookRisk = hasHookRisk()
@@ -64,8 +71,8 @@ class TerminalStatusCollector(private val context: Context) {
 
         val software = linkedMapOf<String, Any?>(
             "isRooted" to rooted,
-            "isBootloaderUnlocked" to "UNKNOWN",
-            "isOsSignatureTrusted" to !rooted,
+            "isBootloaderUnlocked" to bootloaderUnlocked,
+            "isOsSignatureTrusted" to (!rooted && bootloaderUnlocked != true),
             "isEmulator" to emulator,
             "isAdbEnabled" to adbEnabled,
             "hasHookRisk" to hookRisk,
@@ -74,7 +81,7 @@ class TerminalStatusCollector(private val context: Context) {
             "connectionType" to connectionType,
             "isVpnActive" to isVpnActive,
             "isWifiSecured" to isWifiSecured,
-            "hasHighRiskApps" to false,
+            "hasHighRiskApps" to hasHighRiskApps(),
             "isAppSignatureTrusted" to appSignatureTrusted,
             "allowUnknownSources" to unknownSources,
             "osRelease" to Build.VERSION.RELEASE,
@@ -103,7 +110,7 @@ class TerminalStatusCollector(private val context: Context) {
         )
 
         val level = when {
-            rooted || emulator || hookRisk -> "CRITICAL"
+            rooted || bootloaderUnlocked == true || emulator || hookRisk -> "CRITICAL"
             adbEnabled || isVpnActive || memInfo.lowMemory || battery in 0..10 -> "WARN"
             else -> "INFO"
         }
@@ -111,8 +118,22 @@ class TerminalStatusCollector(private val context: Context) {
     }
 
     private fun isRooted(): Boolean {
-        val paths = listOf("/system/xbin/su", "/system/bin/su", "/sbin/su")
-        return paths.any { java.io.File(it).exists() }
+        val paths = listOf("/system/xbin/su", "/system/bin/su", "/sbin/su", "/system/app/Superuser.apk")
+        return paths.any { File(it).exists() } || Build.TAGS?.contains("test-keys") == true
+    }
+
+    private fun isBootloaderUnlocked(): Boolean? {
+        val verifiedBoot = systemProperty("ro.boot.verifiedbootstate")
+        val flashLocked = systemProperty("ro.boot.flash.locked")
+        val vbmetaState = systemProperty("ro.boot.vbmeta.device_state")
+        return when {
+            vbmetaState.equals("unlocked", ignoreCase = true) -> true
+            flashLocked == "0" -> true
+            verifiedBoot.equals("orange", ignoreCase = true) || verifiedBoot.equals("red", ignoreCase = true) -> true
+            verifiedBoot.equals("green", ignoreCase = true) || flashLocked == "1" || vbmetaState.equals("locked", ignoreCase = true) -> false
+            Build.TAGS?.contains("test-keys") == true -> true
+            else -> null
+        }
     }
 
     private fun isEmulator(): Boolean {
@@ -131,6 +152,18 @@ class TerminalStatusCollector(private val context: Context) {
         true
     }.getOrDefault(false)
 
+    private fun hasHighRiskApps(): Boolean = runCatching {
+        val markers = setOf(
+            "de.robv.android.xposed.installer",
+            "org.lsposed.manager",
+            "com.topjohnwu.magisk",
+            "eu.chainfire.supersu",
+            "com.saurik.substrate",
+            "re.frida.server"
+        )
+        context.packageManager.getInstalledPackages(0).any { it.packageName in markers }
+    }.getOrDefault(false)
+
     private fun isAppSignatureTrusted(): Boolean = runCatching {
         val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
         val info = context.packageManager.getPackageInfo(context.packageName, flags)
@@ -139,11 +172,27 @@ class TerminalStatusCollector(private val context: Context) {
 
     private fun allowUnknownSources(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.packageManager.canRequestPackageInstalls()
+            runCatching { context.packageManager.canRequestPackageInstalls() }.getOrDefault(false)
         } else {
             runCatching { Settings.Secure.getInt(context.contentResolver, Settings.Secure.INSTALL_NON_MARKET_APPS, 0) == 1 }.getOrDefault(false)
         }
     }
+
+    private fun currentWifiSecured(): Boolean? = runCatching {
+        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val info = wifiManager.connectionInfo ?: return@runCatching null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            info.currentSecurityType != WifiInfo.SECURITY_TYPE_OPEN &&
+                info.currentSecurityType != WifiInfo.SECURITY_TYPE_OWE
+        } else {
+            null
+        }
+    }.getOrNull()
+
+    private fun systemProperty(name: String): String? = runCatching {
+        val clazz = Class.forName("android.os.SystemProperties")
+        clazz.getMethod("get", String::class.java).invoke(null, name)?.toString()?.takeIf { it.isNotBlank() }
+    }.getOrNull()
 
     private fun localIp(): String = runCatching {
         NetworkInterface.getNetworkInterfaces().toList()

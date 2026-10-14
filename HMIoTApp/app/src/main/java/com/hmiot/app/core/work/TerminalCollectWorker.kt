@@ -14,8 +14,7 @@ class TerminalCollectWorker(
         val app = applicationContext as HmiotApplication
         val repo = app.appContainer.terminalMonitorRepository
         val trustGuardRepository = app.appContainer.trustGuardRepository
-        repo.collectAndQueue()
-        trustGuardRepository.evaluateAndUpdate()
+        trustGuardRepository.evaluateAndUpdate("BACKGROUND_WORKER")
         return when (val flush = repo.flushQueue()) {
             is ApiResult.Success -> Result.success()
             is ApiResult.Failure -> Result.retry()

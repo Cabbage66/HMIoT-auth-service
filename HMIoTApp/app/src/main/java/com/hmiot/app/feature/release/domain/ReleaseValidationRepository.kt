@@ -31,12 +31,11 @@ class ReleaseValidationRepository(
             }
         }
 
-        items += when (val trust = trustGuardRepository.evaluateAndUpdate()) {
+        items += when (val trust = trustGuardRepository.evaluateAndUpdate("RELEASE_VALIDATION")) {
             is ApiResult.Success -> ReleaseCheckItem("信任评估", true, "blocked=${trust.data.blocked}")
             is ApiResult.Failure -> ReleaseCheckItem("信任评估", false, "失败")
         }
 
-        terminalMonitorRepository.collectAndQueue()
         items += when (val flush = terminalMonitorRepository.flushQueue()) {
             is ApiResult.Success -> ReleaseCheckItem("终端事件上报", true, "成功条数=${flush.data}")
             is ApiResult.Failure -> ReleaseCheckItem("终端事件上报", false, "失败")

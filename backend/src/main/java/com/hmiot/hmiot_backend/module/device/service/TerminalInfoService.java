@@ -2,6 +2,9 @@ package com.hmiot.hmiot_backend.module.device.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hmiot.hmiot_backend.common.exception.BusinessException;
 import com.hmiot.hmiot_backend.common.exception.ErrorCode;
 import com.hmiot.hmiot_backend.module.device.dto.TerminalInfoCreateRequest;
@@ -19,7 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -28,10 +33,12 @@ public class TerminalInfoService {
 
     private final TerminalInfoMapper terminalInfoMapper;
     private final DeviceEntityService deviceEntityService;
+    private final ObjectMapper objectMapper;
 
-    public TerminalInfoService(TerminalInfoMapper terminalInfoMapper, DeviceEntityService deviceEntityService) {
+    public TerminalInfoService(TerminalInfoMapper terminalInfoMapper, DeviceEntityService deviceEntityService, ObjectMapper objectMapper) {
         this.terminalInfoMapper = terminalInfoMapper;
         this.deviceEntityService = deviceEntityService;
+        this.objectMapper = objectMapper;
     }
 
     public PageVO<TerminalInfoVO> listTerminals(TerminalInfoQueryRequest request) {
@@ -122,6 +129,7 @@ public class TerminalInfoService {
         } else if (terminal.getDeviceEntityId() != null) {
             deviceEntityService.findEnabledDevice(terminal.getDeviceEntityId());
         }
+        validateDeviceFingerprint(terminal, request.deviceFingerprint());
         if (deviceEntityId != null) {
             terminal.setDeviceEntityId(deviceEntityId);
         }
@@ -142,9 +150,7 @@ public class TerminalInfoService {
         }
         terminal.setIpAddress(requestIp);
         terminal.setLastSeenAt(LocalDateTime.now());
-        if (StringUtils.hasText(request.metadata())) {
-            terminal.setMetadata(request.metadata());
-        }
+        terminal.setMetadata(mergedMetadata(terminal.getMetadata(), request.metadata(), request.deviceFingerprint()));
         if (terminal.getId() == null) {
             terminalInfoMapper.insert(terminal);
         } else {
@@ -219,5 +225,47 @@ public class TerminalInfoService {
             return "TERM-" + Math.abs(request.deviceFingerprint().hashCode());
         }
         return "TERM-" + UUID.randomUUID();
+    }
+
+    private void validateDeviceFingerprint(TerminalInfo terminal, String incomingFingerprint) {
+        if (terminal == null || terminal.getId() == null || !StringUtils.hasText(incomingFingerprint)) {
+            return;
+        }
+        String existing = stringValue(parseMetadata(terminal.getMetadata()).get("deviceFingerprint"));
+        if (StringUtils.hasText(existing) && !existing.equals(incomingFingerprint.trim())) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "终端设备指纹不匹配，禁止复用该终端编号");
+        }
+    }
+
+    private String mergedMetadata(String existingJson, String requestJson, String deviceFingerprint) {
+        Map<String, Object> merged = new LinkedHashMap<>(parseMetadata(existingJson));
+        merged.putAll(parseMetadata(requestJson));
+        if (StringUtils.hasText(deviceFingerprint)) {
+            merged.put("deviceFingerprint", deviceFingerprint.trim());
+        }
+        if (merged.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(merged);
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "终端元数据序列化失败");
+        }
+    }
+
+    private Map<String, Object> parseMetadata(String metadata) {
+        if (!StringUtils.hasText(metadata)) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(metadata, new TypeReference<>() {
+            });
+        } catch (JsonProcessingException exception) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "终端元数据格式无效");
+        }
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 }

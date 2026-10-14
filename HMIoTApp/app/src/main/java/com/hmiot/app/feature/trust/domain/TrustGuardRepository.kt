@@ -14,8 +14,14 @@ class TrustGuardRepository(
 ) {
     val state: Flow<TrustGuardState> = store.trustGuardState
 
-    suspend fun evaluateAndUpdate(): ApiResult<TrustGuardState> {
-        terminalMonitorRepository.collectAndQueue()
+    suspend fun evaluateAndUpdate(
+        triggerScene: String = "MANUAL_TRUST_CHECK",
+        appCode: String? = null,
+        collectBeforeCheck: Boolean = true
+    ): ApiResult<TrustGuardState> {
+        if (collectBeforeCheck) {
+            terminalMonitorRepository.collectAndQueue(triggerScene, appCode)
+        }
         terminalMonitorRepository.flushQueue()
         return when (val result = terminalMonitorRepository.trustCheck()) {
             is ApiResult.Success -> {

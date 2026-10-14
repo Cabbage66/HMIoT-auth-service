@@ -37,7 +37,7 @@ data class RegistrationSubmitResponse(
     val userId: Long,
     val username: String,
     val status: String,
-    val submittedAt: String
+    val submittedAt: String?
 )
 
 data class RegistrationProgressItem(

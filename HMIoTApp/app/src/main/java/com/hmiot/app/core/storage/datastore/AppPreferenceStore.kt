@@ -48,6 +48,7 @@ class AppPreferenceStore(private val context: Context) {
     private val biometricPassHashKey = stringPreferencesKey("biometric_pass_hash")
     private val biometricPassSaltKey = stringPreferencesKey("biometric_pass_salt")
     private val biometricAuditLogsKey = stringPreferencesKey("biometric_audit_logs")
+    private val localRegistrationRecordsKey = stringPreferencesKey("local_registration_records")
 
     val session: Flow<LocalSession?> = context.dataStore.data
         .catch { exception ->
@@ -241,6 +242,26 @@ class AppPreferenceStore(private val context: Context) {
         context.dataStore.edit { prefs -> prefs[biometricAuditLogsKey] = gson.toJson(trimmed) }
     }
 
+    val localRegistrationRecords: Flow<List<LocalRegistrationRecord>> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) emit(emptyPreferences()) else throw exception
+        }
+        .map { prefs ->
+            val json = prefs[localRegistrationRecordsKey].orEmpty()
+            if (json.isBlank()) emptyList()
+            else runCatching {
+                gson.fromJson<List<LocalRegistrationRecord>>(json, object : TypeToken<List<LocalRegistrationRecord>>() {}.type)
+            }.getOrElse { emptyList() }
+        }
+
+    suspend fun appendLocalRegistrationRecord(record: LocalRegistrationRecord) {
+        val current = localRegistrationRecords.first()
+            .filterNot { it.registrationId == record.registrationId }
+            .toMutableList()
+        current.add(0, record)
+        context.dataStore.edit { prefs -> prefs[localRegistrationRecordsKey] = gson.toJson(current.take(100)) }
+    }
+
     private fun sha256Hex(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256")
         .digest(bytes)
         .joinToString("") { "%02x".format(it) }
@@ -276,6 +297,20 @@ data class PendingTerminalEvent(
     val eventLevel: String,
     val eventTime: String,
     val eventPayload: Map<String, Any?>
+)
+
+data class LocalRegistrationRecord(
+    val registrationId: Long,
+    val userId: Long,
+    val username: String,
+    val realName: String,
+    val phone: String?,
+    val email: String?,
+    val status: String,
+    val rejectReason: String?,
+    val submittedAt: String,
+    val terminalCode: String,
+    val localOnly: Boolean = true
 )
 
 data class TrustGuardState(

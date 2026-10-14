@@ -16,11 +16,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.identitylogin.InternalIdentityUiData
 import com.example.identitylogin.SecurityCategoryUiData
+import com.example.identitylogin.SecurityDetailRowUiData
+import com.example.identitylogin.SecurityDetailSectionUiData
 import com.example.identitylogin.InternalSystemScreen
 import com.example.identitylogin.TrustDashboardUiData
 import com.hmiot.app.core.network.model.ApiResult
@@ -82,8 +85,10 @@ private fun AppEntry() {
     var actionInfo by remember { mutableStateOf<String?>(null) }
     var actionError by remember { mutableStateOf<String?>(null) }
     var securityCategory by remember { mutableStateOf(SecurityCategoryUiData()) }
+    var loggedSessionKey by remember { mutableStateOf<String?>(null) }
 
     suspend fun loadAppsIfNeeded() {
+        if (session == null) return
         if (apps.isNotEmpty()) return
         when (val result = accessRepository.listApps()) {
             is ApiResult.Success -> {
@@ -93,8 +98,50 @@ private fun AppEntry() {
                 actionError = null
             }
             is ApiResult.Failure -> {
-                actionError = result.message
+                actionError = mainMessage(result.message)
             }
+        }
+    }
+
+    suspend fun runSecurityEvaluation(
+        triggerScene: String,
+        appCode: String? = null,
+        showSuccess: Boolean = true
+    ): Boolean {
+        return try {
+            val snapshot = terminalMonitorRepository.collectSecuritySnapshot()
+            securityCategory = securityCategoryFromSnapshot(snapshot)
+            val queued = terminalMonitorRepository.collectAndQueue(triggerScene, appCode)
+            val flush = terminalMonitorRepository.flushQueue()
+            val collectMessage = when {
+                flush is ApiResult.Failure -> "安全信息已更新，服务端同步稍后重试"
+                queued is ApiResult.Success -> "安全信息已更新，日志已记录"
+                else -> "安全信息已更新"
+            }
+            actionInfo = collectMessage
+            actionError = null
+            when (val result = trustGuardRepository.evaluateAndUpdate(triggerScene, appCode, collectBeforeCheck = false)) {
+                is ApiResult.Success -> {
+                    if (showSuccess) {
+                        actionInfo = if (result.data.blocked) {
+                            "$collectMessage，检测到风险，请按提示处理"
+                        } else {
+                            "$collectMessage，当前状态正常"
+                        }
+                    }
+                    actionError = null
+                    true
+                }
+                is ApiResult.Failure -> {
+                    actionInfo = "$collectMessage，信任评估服务暂不可用"
+                    actionError = null
+                    false
+                }
+            }
+        } catch (ex: Exception) {
+            actionInfo = null
+            actionError = "安全信息采集失败：${mainMessage(ex.message)}"
+            false
         }
     }
 
@@ -109,8 +156,14 @@ private fun AppEntry() {
         return apps.getOrNull(index % apps.size)
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(session?.token, session?.terminalCode) {
+        if (session == null) return@LaunchedEffect
         loadAppsIfNeeded()
+        val key = "${session?.userId}:${session?.terminalCode}:${session?.token?.take(8)}"
+        if (loggedSessionKey != key) {
+            loggedSessionKey = key
+            runSecurityEvaluation("LOGIN", showSuccess = false)
+        }
     }
 
     Scaffold(modifier = Modifier.fillMaxSize()) {
@@ -166,43 +219,44 @@ private fun AppEntry() {
                                 actionError = "暂无可访问应用"
                                 return@launch
                             }
-                            when (val trust = accessRepository.checkTrust(appTarget)) {
+                            terminalMonitorRepository.collectAndQueue("APP_ACCESS", appTarget.appCode)
+                            terminalMonitorRepository.flushQueue()
+                            val guard = when (val evaluated = trustGuardRepository.evaluateAndUpdate("APP_ACCESS", appTarget.appCode, collectBeforeCheck = false)) {
+                                is ApiResult.Success -> evaluated.data
                                 is ApiResult.Failure -> {
-                                    actionError = trust.message
+                                    actionInfo = null
+                                    actionError = mainMessage(evaluated.message)
+                                    return@launch
                                 }
+                            }
+                            securityCategory = securityCategoryFromSnapshot(terminalMonitorRepository.collectSecuritySnapshot())
+                            val trustLevel = guard.trustLevel ?: 0
+                            val authMethod = session?.authMethod ?: "PASSWORD_LOGIN"
+                            val decision = accessRepository.evaluatePolicy(appTarget, authMethod, trustLevel)
+                            if (!decision.allowed) {
+                                actionInfo = "应用访问需二次认证：${mainMessage(decision.reason)}"
+                                actionError = null
+                                return@launch
+                            }
+                            when (val access = accessRepository.ssoAccess(appTarget)) {
                                 is ApiResult.Success -> {
-                                    val trustLevel = trust.data.trustLevel ?: 0
-                                    val authMethod = session?.authMethod ?: "PASSWORD_LOGIN"
-                                    val decision = accessRepository.evaluatePolicy(appTarget, authMethod, trustLevel)
-                                    if (!decision.allowed) {
-                                        actionInfo = "应用访问需二次认证：${decision.reason}"
-                                        actionError = null
-                                        return@launch
+                                    actionInfo = if (access.data.success) {
+                                        "应用访问成功：${appTarget.appCode}"
+                                    } else {
+                                        "应用访问失败：${mainMessage(access.data.message)}"
                                     }
-                                    when (val access = accessRepository.ssoAccess(appTarget)) {
-                                        is ApiResult.Success -> {
-                                            actionInfo = if (access.data.success) {
-                                                "应用访问成功：${appTarget.appCode}"
-                                            } else {
-                                                "应用访问失败：${access.data.message}"
-                                            }
-                                            actionError = null
-                                        }
-                                        is ApiResult.Failure -> actionError = access.message
-                                    }
+                                    actionError = null
+                                }
+                                is ApiResult.Failure -> {
+                                    actionInfo = null
+                                    actionError = mainMessage(access.message)
                                 }
                             }
                         }
                     },
                     onRunTrustCheck = {
                         scope.launch {
-                            when (val result = trustGuardRepository.evaluateAndUpdate()) {
-                                is ApiResult.Success -> {
-                                    actionInfo = "信任评估完成：${if (result.data.blocked) "已阻断" else "通过"}"
-                                    actionError = null
-                                }
-                                is ApiResult.Failure -> actionError = result.message
-                            }
+                            runSecurityEvaluation("MANUAL_TRUST_CHECK")
                         }
                     },
                     onRunReleaseCheck = {
@@ -220,21 +274,13 @@ private fun AppEntry() {
                                     actionInfo = "策略同步成功：${result.data.policies.size}条"
                                     actionError = null
                                 }
-                                is ApiResult.Failure -> actionError = result.message
+                                is ApiResult.Failure -> actionError = mainMessage(result.message)
                             }
                         }
                     },
                     onRunSecurityCheck = {
                         scope.launch {
-                            val snapshot = terminalMonitorRepository.collectSecuritySnapshot()
-                            securityCategory = securityCategoryFromSnapshot(snapshot)
-                            terminalMonitorRepository.collectAndQueue()
-                            val flush = terminalMonitorRepository.flushQueue()
-                            val trust = trustGuardRepository.evaluateAndUpdate()
-                            val flushed = (flush as? ApiResult.Success)?.data ?: 0
-                            val blocked = (trust as? ApiResult.Success)?.data?.blocked
-                            actionInfo = "安全检测完成：上报${flushed}条，信任阻断=${blocked ?: "-"}"
-                            actionError = if (flush is ApiResult.Failure) flush.message else if (trust is ApiResult.Failure) trust.message else null
+                            runSecurityEvaluation("SECURITY_PAGE")
                         }
                     },
                     onBiometricTip = {
@@ -259,9 +305,9 @@ private fun trustDashboardFromState(state: com.hmiot.app.core.storage.datastore.
         1 -> "低信任等级"
         else -> if (blocked) "风险阻断" else "待评估"
     }
-    val levelColor = if (blocked || risk == "HIGH") androidx.compose.ui.graphics.Color(0xFFC92A2A)
-    else if (risk == "MEDIUM") androidx.compose.ui.graphics.Color(0xFFB45309)
-    else androidx.compose.ui.graphics.Color(0xFF087F5B)
+    val levelColor = if (blocked || risk == "HIGH") Color(0xFFC92A2A)
+    else if (risk == "MEDIUM") Color(0xFFB45309)
+    else Color(0xFF087F5B)
     val levelBg = levelColor.copy(alpha = 0.12f)
     val summary = if (blocked) {
         "当前终端处于风险阻断状态，请完成二次认证或联系管理员。"
@@ -288,23 +334,103 @@ private fun securityCategoryFromSnapshot(snapshot: com.hmiot.app.feature.termina
     val sw = snapshot.software
     val hw = snapshot.hardware
     val rooted = sw["isRooted"] == true
+    val bootloaderUnlocked = sw["isBootloaderUnlocked"] == true
     val emulator = sw["isEmulator"] == true
     val adb = sw["isAdbEnabled"] == true
     val hook = sw["hasHookRisk"] == true
-    val swBadge = if (rooted || emulator || hook) "高风险" else if (adb) "告警" else "正常"
+    val highRiskApps = sw["hasHighRiskApps"] == true
+    val swBadge = if (rooted || bootloaderUnlocked || emulator || hook || highRiskApps) "高风险" else if (adb || sw["isVpnActive"] == true || sw["allowUnknownSources"] == true) "告警" else "正常"
     val hwBadge = if (hw["secureHardware"] == true) "可信" else "一般"
-    val swDesc = "Root=$rooted, 模拟器=$emulator, ADB=$adb, Hook=$hook"
-    val hwDesc = "指纹=${hw["fingerprintSupported"]}, 人脸=${hw["faceSupported"]}, 声纹=${hw["voiceprintSupported"]}, 安全硬件=${hw["secureHardware"]}"
+    val swDesc = "Root ${yesNo(rooted)}，ADB ${yesNo(adb)}，Hook ${yesNo(hook)}，高风险应用 ${yesNo(highRiskApps)}"
+    val hwDesc = "指纹 ${supportText(hw["fingerprintSupported"])}，人脸 ${supportText(hw["faceSupported"])}，声纹 ${supportText(hw["voiceprintSupported"])}，安全硬件 ${supportText(hw["secureHardware"])}"
     val swLines = listOf(
-        "系统完整性: rooted=$rooted, os签名可信=${sw["isOsSignatureTrusted"]}",
-        "运行环境: emulator=$emulator, adb=$adb, hookRisk=$hook",
-        "网络安全: ${sw["connectionType"]}, vpn=${sw["isVpnActive"]}, wifiSecured=${sw["isWifiSecured"]}",
-        "应用风险: highRiskApps=${sw["hasHighRiskApps"]}, appSig=${sw["isAppSignatureTrusted"]}, unknownSources=${sw["allowUnknownSources"]}"
+        "Root=${yesNo(rooted)}, Bootloader=${bootloaderText(sw["isBootloaderUnlocked"])}, OS签名=${trustedText(sw["isOsSignatureTrusted"])}",
+        "模拟器=${yesNo(emulator)}, ADB=${yesNo(adb)}, Hook=${yesNo(hook)}",
+        "网络=${valueText(sw["connectionType"])}, VPN=${yesNo(sw["isVpnActive"])}, Wi-Fi安全=${nullableYesNo(sw["isWifiSecured"], "非 Wi-Fi/系统未开放")}",
+        "高风险应用=${yesNo(highRiskApps)}, 应用签名=${trustedText(sw["isAppSignatureTrusted"])}, 未知来源=${yesNo(sw["allowUnknownSources"])}"
     )
     val hwLines = listOf(
-        "设备标识: deviceId=${hw["deviceId"]}, androidId=${hw["androidId"]}",
-        "终端上下文: appVersion=${hw["appVersion"]}, ip=${hw["clientIp"]}, location=${hw["location"]}",
-        "生物能力: fp=${hw["fingerprintSupported"]}, face=${hw["faceSupported"]}, voice=${hw["voiceprintSupported"]}"
+        "设备ID=${shortValue(hw["deviceId"])}, AndroidID=${shortValue(hw["androidId"])}",
+        "版本=${valueText(hw["appVersion"])}, IP=${valueText(hw["clientIp"])}, 位置=${valueText(hw["location"], "未授权/未采集")}",
+        "指纹=${supportText(hw["fingerprintSupported"])}, 人脸=${supportText(hw["faceSupported"])}, 声纹=${supportText(hw["voiceprintSupported"])}"
+    )
+    val sections = listOf(
+        SecurityDetailSectionUiData(
+            title = "系统完整性",
+            badge = if (rooted || bootloaderUnlocked) "风险" else "正常",
+            status = if (rooted || bootloaderUnlocked) "DANGER" else "SUCCESS",
+            rows = listOf(
+                SecurityDetailRowUiData("Root 状态", yesNo(rooted)),
+                SecurityDetailRowUiData("Bootloader", bootloaderText(sw["isBootloaderUnlocked"])),
+                SecurityDetailRowUiData("OS 签名", trustedText(sw["isOsSignatureTrusted"]))
+            )
+        ),
+        SecurityDetailSectionUiData(
+            title = "运行环境风险",
+            badge = if (emulator || adb || hook) "告警" else "正常",
+            status = if (emulator || hook) "DANGER" else if (adb) "WARN" else "SUCCESS",
+            rows = listOf(
+                SecurityDetailRowUiData("模拟器", yesNo(emulator)),
+                SecurityDetailRowUiData("ADB 调试", yesNo(adb)),
+                SecurityDetailRowUiData("Hook 风险", yesNo(hook))
+            )
+        ),
+        SecurityDetailSectionUiData(
+            title = "系统基线",
+            badge = "已采集",
+            status = "SUCCESS",
+            rows = listOf(
+                SecurityDetailRowUiData("API Level", valueText(sw["apiLevel"])),
+                SecurityDetailRowUiData("安全补丁", valueText(sw["securityPatch"], "未知")),
+                SecurityDetailRowUiData("系统版本", valueText(sw["osRelease"], "未知"))
+            )
+        ),
+        SecurityDetailSectionUiData(
+            title = "网络安全",
+            badge = if (sw["isVpnActive"] == true || sw["isWifiSecured"] == false) "告警" else "正常",
+            status = if (sw["isVpnActive"] == true || sw["isWifiSecured"] == false) "WARN" else "SUCCESS",
+            rows = listOf(
+                SecurityDetailRowUiData("连接类型", valueText(sw["connectionType"])),
+                SecurityDetailRowUiData("VPN", yesNo(sw["isVpnActive"])),
+                SecurityDetailRowUiData("Wi-Fi 加密", nullableYesNo(sw["isWifiSecured"], "非 Wi-Fi/系统未开放"))
+            )
+        ),
+        SecurityDetailSectionUiData(
+            title = "应用风险",
+            badge = if (highRiskApps || sw["isAppSignatureTrusted"] != true || sw["allowUnknownSources"] == true) "告警" else "正常",
+            status = if (highRiskApps || sw["isAppSignatureTrusted"] != true || sw["allowUnknownSources"] == true) "WARN" else "SUCCESS",
+            rows = listOf(
+                SecurityDetailRowUiData("高风险应用", yesNo(highRiskApps)),
+                SecurityDetailRowUiData("应用签名", trustedText(sw["isAppSignatureTrusted"])),
+                SecurityDetailRowUiData("允许未知来源", yesNo(sw["allowUnknownSources"]))
+            )
+        ),
+        SecurityDetailSectionUiData(
+            title = "设备身份与上下文",
+            badge = "已采集",
+            status = "SUCCESS",
+            rows = listOf(
+                SecurityDetailRowUiData("设备标识", shortValue(hw["deviceIdentifier"])),
+                SecurityDetailRowUiData("设备 ID", shortValue(hw["deviceId"])),
+                SecurityDetailRowUiData("Android ID", shortValue(hw["androidId"])),
+                SecurityDetailRowUiData("应用版本", valueText(hw["appVersion"])),
+                SecurityDetailRowUiData("设备指纹", shortValue(hw["deviceFingerprint"], 24)),
+                SecurityDetailRowUiData("客户端 IP", valueText(hw["clientIp"], "未获取")),
+                SecurityDetailRowUiData("位置", valueText(hw["location"], "未授权/未采集"))
+            )
+        ),
+        SecurityDetailSectionUiData(
+            title = "生物能力",
+            badge = hwBadge,
+            status = if (hw["secureHardware"] == true) "SUCCESS" else "WARN",
+            rows = listOf(
+                SecurityDetailRowUiData("指纹", supportText(hw["fingerprintSupported"])),
+                SecurityDetailRowUiData("人脸", supportText(hw["faceSupported"])),
+                SecurityDetailRowUiData("声纹", supportText(hw["voiceprintSupported"])),
+                SecurityDetailRowUiData("安全硬件", supportText(hw["secureHardware"])),
+                SecurityDetailRowUiData("本地人脸比对", supportText(hw["localFaceCompare"]))
+            )
+        )
     )
     return SecurityCategoryUiData(
         softwareBadge = swBadge,
@@ -312,6 +438,53 @@ private fun securityCategoryFromSnapshot(snapshot: com.hmiot.app.feature.termina
         hardwareBadge = hwBadge,
         hardwareDesc = hwDesc,
         softwareLines = swLines,
-        hardwareLines = hwLines
+        hardwareLines = hwLines,
+        detailSections = sections
     )
+}
+
+private fun yesNo(value: Any?): String = if (value == true) "是" else "否"
+
+private fun nullableYesNo(value: Any?, unknown: String): String = when (value) {
+    true -> "是"
+    false -> "否"
+    else -> unknown
+}
+
+private fun supportText(value: Any?): String = if (value == true) "支持" else "不支持"
+
+private fun trustedText(value: Any?): String = if (value == true) "可信" else "不可信"
+
+private fun bootloaderText(value: Any?): String = when (value) {
+    true -> "已解锁"
+    false -> "已锁定"
+    else -> "系统未开放"
+}
+
+private fun valueText(value: Any?, fallback: String = "未获取"): String {
+    val text = value?.toString().orEmpty()
+    return text.ifBlank { fallback }
+}
+
+private fun shortValue(value: Any?, maxLength: Int = 18): String {
+    val text = valueText(value)
+    if (text.length <= maxLength) return text
+    val left = (maxLength - 3) / 2
+    val right = maxLength - 3 - left
+    return text.take(left) + "..." + text.takeLast(right)
+}
+
+private fun mainMessage(message: String?): String {
+    val raw = message.orEmpty().ifBlank { return "请求失败，请稍后重试" }
+    val withoutTrace = raw
+        .replace(Regex("traceId=[A-Za-z0-9_\\-]+"), "")
+        .replace(Regex("Failed to connect to\\s*"), "无法连接服务端 ")
+        .replace(Regex("HTTP\\s*\\d{3}", RegexOption.IGNORE_CASE), "服务端暂不可用")
+        .replace(Regex("java\\.[A-Za-z0-9_.: ]+"), "")
+        .trim()
+    return withoutTrace
+        .lineSequence()
+        .firstOrNull { it.isNotBlank() }
+        ?.take(80)
+        ?: "请求失败，请稍后重试"
 }

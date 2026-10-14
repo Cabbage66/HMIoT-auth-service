@@ -1,0 +1,27 @@
+{
+  "requestId" : "04aeaa10-027b-4d69-8f18-e05a7848bd69",
+  "type" : "result",
+  "loggedAt" : "2026-06-05T16:20:36.662192",
+  "payload" : {
+    "requestLogPath" : "/Users/caitingsen/ServiceProject/HMIoT-auth-service/runtime/trust-assessment-logs/20260605/04aeaa10-027b-4d69-8f18-e05a7848bd69-request-20260605-162036-600.json",
+    "modelSource" : "mock-ueba",
+    "modelVersion" : "mock-ueba-1.0",
+    "trustScore" : 20,
+    "trustLevel" : 0,
+    "riskLevel" : "HIGH",
+    "decision" : "DENY",
+    "rejectReason" : "UEBA 检测到高风险终端行为",
+    "anomaly" : true,
+    "anomalyIndicators" : {
+      "terminalBehavior" : "HIGH"
+    },
+    "alerts" : [ "UEBA 检测到高风险终端行为" ],
+    "rawResponse" : {
+      "mock" : true,
+      "trustScore" : 20,
+      "riskLevel" : "HIGH",
+      "decision" : "DENY",
+      "requestId" : "04aeaa10-027b-4d69-8f18-e05a7848bd69"
+    }
+  }
+}

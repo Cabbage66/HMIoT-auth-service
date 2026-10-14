@@ -32,6 +32,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +62,7 @@ import com.hmiot.app.feature.auth.domain.LoginMode
 import com.hmiot.app.feature.biometric.domain.FingerprintCryptoManager
 import com.hmiot.app.feature.biometric.domain.FingerprintKeyId
 import com.hmiot.app.feature.biometric.domain.VoiceSampleCollector
+import com.hmiot.app.feature.terminal.domain.TerminalIdentityProvider
 import com.hmiot.app.ui.components.StatusBlock
 import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.launch
@@ -88,6 +90,11 @@ fun LoginScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var bioInfo by remember { mutableStateOf<String?>(null) }
     var bioError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        val identity = TerminalIdentityProvider.resolve(context)
+        vm.updateTerminalIdentity(identity.terminalCode, identity.deviceFingerprint, identity.metadataJson)
+    }
 
     val takePhotoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap: Bitmap? ->
         if (bitmap == null) {
@@ -145,9 +152,6 @@ fun LoginScreen(
                     EyeOffIcon(Modifier.size(24.dp).clickable { passwordVisible = !passwordVisible }, Color(0xFF9DA6B5))
                 }
             )
-            Spacer(Modifier.height(14.dp))
-            FlatTextField(state.terminalCode, vm::updateTerminalCode, "终端编码")
-
             if (state.loginMode == LoginMode.CERTIFICATE) {
                 Spacer(Modifier.height(10.dp))
                 Button(onClick = vm::requestChallenge, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp)) { Text("获取 Challenge") }
@@ -227,7 +231,7 @@ fun LoginScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 FooterTextButton("找回密码") {}
                 FooterTextButton("新用户注册", onGoRegister)
-                FooterTextButton("审核进度") { onGoRecords(state.username.trim()) }
+                FooterTextButton("审核进度") { onGoRecords("") }
             }
             Spacer(Modifier.height(24.dp))
         }

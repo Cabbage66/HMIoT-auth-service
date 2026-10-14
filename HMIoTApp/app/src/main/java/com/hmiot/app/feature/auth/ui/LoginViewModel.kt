@@ -29,6 +29,8 @@ class LoginViewModel(
     fun updateUsername(value: String) = _state.update { it.copy(username = value) }
     fun updatePassword(value: String) = _state.update { it.copy(password = value) }
     fun updateTerminalCode(value: String) = _state.update { it.copy(terminalCode = value) }
+    fun updateTerminalIdentity(terminalCode: String, deviceFingerprint: String, metadataJson: String) =
+        _state.update { it.copy(terminalCode = terminalCode, deviceFingerprint = deviceFingerprint, terminalMetadataJson = metadataJson) }
     fun updateSignature(value: String) = _state.update { it.copy(signatureB64 = value) }
     fun updateMode(value: LoginMode) = _state.update { it.copy(loginMode = value) }
 
@@ -39,7 +41,7 @@ class LoginViewModel(
             return
         }
         if (current.username.isBlank() || current.terminalCode.isBlank()) {
-            _state.update { it.copy(error = "用户名与终端编码不能为空") }
+            _state.update { it.copy(error = "用户名不能为空，或本机终端信息尚未初始化") }
             return
         }
         viewModelScope.launch {
@@ -47,13 +49,13 @@ class LoginViewModel(
             val request = ChallengeRequest(
                 username = current.username.trim(),
                 terminalCode = current.terminalCode.trim(),
-                deviceFingerprint = "android-emulator",
+                deviceFingerprint = current.deviceFingerprint,
                 clientType = "ANDROID",
                 clientVersion = "1.0.0-stage1",
                 osName = "Android",
                 osVersion = android.os.Build.VERSION.RELEASE ?: "unknown",
                 userAgent = "HMIoTApp/1.0",
-                metadata = """{"phase":"stage1"}"""
+                metadata = loginMetadata(current, "CERTIFICATE")
             )
             when (val result = authRepository.requestChallenge(current.loginMode, request)) {
                 is ApiResult.Success -> _state.update {
@@ -115,7 +117,7 @@ class LoginViewModel(
     ) {
         val current = _state.value
         if (current.username.isBlank() || current.terminalCode.isBlank()) {
-            _state.update { it.copy(error = "请先填写用户名与终端编码") }
+            _state.update { it.copy(error = "请先填写用户名，或等待本机终端信息初始化") }
             return
         }
         if (keyId.isBlank()) {
@@ -128,13 +130,13 @@ class LoginViewModel(
                 username = current.username.trim(),
                 terminalCode = current.terminalCode.trim(),
                 keyId = keyId.trim(),
-                deviceFingerprint = "android-${android.os.Build.DEVICE ?: "unknown"}",
+                deviceFingerprint = current.deviceFingerprint,
                 clientType = "ANDROID",
                 clientVersion = "1.0.0",
                 osName = "Android",
                 osVersion = android.os.Build.VERSION.RELEASE ?: "unknown",
                 userAgent = "HMIoTApp/1.0",
-                metadata = """{"loginMode":"FINGERPRINT"}"""
+                metadata = loginMetadata(current, "FINGERPRINT")
             )
             when (val result = authRepository.requestFingerprintChallenge(request)) {
                 is ApiResult.Success -> {
@@ -168,7 +170,7 @@ class LoginViewModel(
     ) {
         val current = _state.value
         if (current.username.isBlank() || current.terminalCode.isBlank()) {
-            _state.update { it.copy(error = "请先填写用户名与终端编码") }
+            _state.update { it.copy(error = "请先填写用户名，或等待本机终端信息初始化") }
             return
         }
         if (signatureBase64.isBlank()) {
@@ -185,13 +187,13 @@ class LoginViewModel(
                 signatureBase64 = signatureBase64.trim(),
                 signAlgorithm = signAlgorithm.trim().ifBlank { "SHA256withECDSA" },
                 terminalCode = current.terminalCode.trim(),
-                deviceFingerprint = "android-${android.os.Build.DEVICE ?: "unknown"}",
+                deviceFingerprint = current.deviceFingerprint,
                 clientType = "ANDROID",
                 clientVersion = "1.0.0",
                 osName = "Android",
                 osVersion = android.os.Build.VERSION.RELEASE ?: "unknown",
                 userAgent = "HMIoTApp/1.0",
-                metadata = """{"loginMode":"FINGERPRINT","keyId":"${challenge.keyId}"}"""
+                metadata = loginMetadata(current, "FINGERPRINT", """"keyId":"${challenge.keyId}"""")
             )
             when (val result = authRepository.loginByFingerprint(request)) {
                 is ApiResult.Success -> {
@@ -213,7 +215,7 @@ class LoginViewModel(
     fun faceLogin(imageBase64: String, onSuccess: () -> Unit) {
         val current = _state.value
         if (current.username.isBlank() || current.terminalCode.isBlank()) {
-            _state.update { it.copy(error = "请先填写用户名与终端编码") }
+            _state.update { it.copy(error = "请先填写用户名，或等待本机终端信息初始化") }
             return
         }
         if (imageBase64.isBlank()) {
@@ -242,7 +244,7 @@ class LoginViewModel(
     fun voiceprintLogin(audioBase64: String, onSuccess: () -> Unit) {
         val current = _state.value
         if (current.username.isBlank() || current.terminalCode.isBlank()) {
-            _state.update { it.copy(error = "请先填写用户名与终端编码") }
+            _state.update { it.copy(error = "请先填写用户名，或等待本机终端信息初始化") }
             return
         }
         if (audioBase64.isBlank()) {
@@ -271,7 +273,7 @@ class LoginViewModel(
     private fun passwordLogin(onSuccess: () -> Unit) {
         val current = _state.value
         if (current.username.isBlank() || current.password.length < 6 || current.terminalCode.isBlank()) {
-            _state.update { it.copy(error = "请输入用户名、密码(>=6)和终端编码") }
+            _state.update { it.copy(error = "请输入用户名、密码(>=6)，并等待本机终端信息初始化") }
             return
         }
         viewModelScope.launch {
@@ -280,13 +282,13 @@ class LoginViewModel(
                 username = current.username.trim(),
                 password = current.password,
                 terminalCode = current.terminalCode.trim(),
-                deviceFingerprint = "android-emulator",
+                deviceFingerprint = current.deviceFingerprint,
                 clientType = "ANDROID",
                 clientVersion = "1.0.0",
                 osName = "Android",
                 osVersion = android.os.Build.VERSION.RELEASE ?: "unknown",
                 userAgent = "HMIoTApp/1.0",
-                metadata = """{"loginMode":"PASSWORD"}"""
+                metadata = loginMetadata(current, "PASSWORD")
             )
             when (val result = authRepository.loginByPassword(request)) {
                 is ApiResult.Success -> {
@@ -311,13 +313,13 @@ class LoginViewModel(
             imageBase64 = imageBase64.trim(),
             imageFormat = "jpeg",
             terminalCode = current.terminalCode.trim(),
-            deviceFingerprint = "android-${android.os.Build.DEVICE ?: "unknown"}",
+            deviceFingerprint = current.deviceFingerprint,
             clientType = "ANDROID",
             clientVersion = "1.0.0",
             osName = "Android",
             osVersion = android.os.Build.VERSION.RELEASE ?: "unknown",
             userAgent = "HMIoTApp/1.0",
-            metadata = """{"loginMode":"FACE"}"""
+            metadata = loginMetadata(current, "FACE")
         )
     }
 
@@ -328,14 +330,27 @@ class LoginViewModel(
             audioFormat = "wav",
             sampleRate = 16000,
             terminalCode = current.terminalCode.trim(),
-            deviceFingerprint = "android-${android.os.Build.DEVICE ?: "unknown"}",
+            deviceFingerprint = current.deviceFingerprint,
             clientType = "ANDROID",
             clientVersion = "1.0.0",
             osName = "Android",
             osVersion = android.os.Build.VERSION.RELEASE ?: "unknown",
             userAgent = "HMIoTApp/1.0",
-            metadata = """{"loginMode":"VOICEPRINT"}"""
+            metadata = loginMetadata(current, "VOICEPRINT")
         )
+    }
+
+    private fun loginMetadata(current: LoginUiState, mode: String, extra: String? = null): String {
+        val base = current.terminalMetadataJson.trim().takeIf { it.startsWith("{") && it.endsWith("}") } ?: "{}"
+        val additions = buildList {
+            add(""""loginMode":"$mode"""")
+            if (!extra.isNullOrBlank()) add(extra)
+        }.joinToString(",")
+        return if (base == "{}") {
+            "{$additions}"
+        } else {
+            base.dropLast(1) + "," + additions + "}"
+        }
     }
 
     fun probeEndpoint() {
@@ -364,6 +379,8 @@ data class LoginUiState(
     val username: String = "",
     val password: String = "",
     val terminalCode: String = "",
+    val deviceFingerprint: String = "",
+    val terminalMetadataJson: String = "{}",
     val signatureB64: String = "",
     val loginMode: LoginMode = LoginMode.PASSWORD,
     val sessionId: String = "",

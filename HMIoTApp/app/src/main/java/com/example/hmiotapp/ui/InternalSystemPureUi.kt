@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -51,15 +52,79 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val TextMain = Color(0xFF121826)
-private val TextMuted = Color(0xFF8B92A1)
+private val LightTextMain = Color(0xFF121826)
+private val LightTextMuted = Color(0xFF8B92A1)
 private val AppBlue = Color(0xFF12A8FF)
 private val AppBlueDark = Color(0xFF0587DC)
 private val Green = Color(0xFF20C997)
 private val Orange = Color(0xFFF59E0B)
 private val Red = Color(0xFFEF4444)
 private val Purple = Color(0xFF7C3AED)
-private val Line = Color(0xFFEEF2F7)
+private val LightLine = Color(0xFFEEF2F7)
+
+private data class InternalSystemColors(
+    val backgroundBrush: Brush,
+    val surface: Color,
+    val panel: Color,
+    val nestedPanel: Color,
+    val line: Color,
+    val textMain: Color,
+    val textMuted: Color,
+    val textSecondary: Color,
+    val statusIcon: Color,
+    val scoreInner: Color,
+    val scoreTrack: Color
+)
+
+@Composable
+private fun internalSystemColors(): InternalSystemColors {
+    val dark = isSystemInDarkTheme()
+    return if (dark) {
+        InternalSystemColors(
+            backgroundBrush = Brush.verticalGradient(
+                0f to Color(0xFF07111F),
+                0.48f to Color(0xFF0B1624),
+                1f to Color(0xFF101826)
+            ),
+            surface = Color(0xFF07111F),
+            panel = Color(0xE61A2636),
+            nestedPanel = Color(0xFF111D2B),
+            line = Color(0xFF27364A),
+            textMain = Color(0xFFF4F7FB),
+            textMuted = Color(0xFFA8B3C7),
+            textSecondary = Color(0xFFC5CEDD),
+            statusIcon = Color(0xFFE6EDF7),
+            scoreInner = Color(0xFF0F1B2A),
+            scoreTrack = Color(0xFF2A3950)
+        )
+    } else {
+        InternalSystemColors(
+            backgroundBrush = Brush.verticalGradient(
+                0f to Color(0xFFFBFCFF),
+                0.40f to Color.White,
+                1f to Color(0xFFF4F7FB)
+            ),
+            surface = Color.White,
+            panel = Color.White.copy(alpha = 0.86f),
+            nestedPanel = Color(0xFFF7FAFC).copy(alpha = 0.78f),
+            line = LightLine,
+            textMain = LightTextMain,
+            textMuted = LightTextMuted,
+            textSecondary = Color(0xFF667085),
+            statusIcon = Color(0xFF1D2433),
+            scoreInner = Color.White.copy(alpha = 0.96f),
+            scoreTrack = Color(0xFFE4E9F2)
+        )
+    }
+}
+
+@Composable private fun textMainColor(): Color = internalSystemColors().textMain
+@Composable private fun textMutedColor(): Color = internalSystemColors().textMuted
+@Composable private fun textSecondaryColor(): Color = internalSystemColors().textSecondary
+@Composable private fun lineColor(): Color = internalSystemColors().line
+@Composable private fun panelColor(): Color = internalSystemColors().panel
+@Composable private fun nestedPanelColor(): Color = internalSystemColors().nestedPanel
+@Composable private fun statusIconColor(): Color = internalSystemColors().statusIcon
 
 data class InternalIdentityUiData(
     val username: String = "zhangsan",
@@ -91,7 +156,20 @@ data class SecurityCategoryUiData(
     val hardwareBadge: String = "可信",
     val hardwareDesc: String = "设备指纹、传感器、安全芯片与本机标识可信。",
     val softwareLines: List<String> = emptyList(),
-    val hardwareLines: List<String> = emptyList()
+    val hardwareLines: List<String> = emptyList(),
+    val detailSections: List<SecurityDetailSectionUiData> = emptyList()
+)
+
+data class SecurityDetailSectionUiData(
+    val title: String,
+    val badge: String,
+    val status: String,
+    val rows: List<SecurityDetailRowUiData>
+)
+
+data class SecurityDetailRowUiData(
+    val label: String,
+    val value: String
 )
 
 @Composable
@@ -167,7 +245,7 @@ fun InternalSystemScreen(
 @Composable
 private fun InternalSystemPureUiApp(content: @Composable BoxScope.() -> Unit) {
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
+        Surface(modifier = Modifier.fillMaxSize(), color = internalSystemColors().surface) {
             AppBackground {
                 content()
             }
@@ -180,20 +258,14 @@ private fun AppBackground(content: @Composable BoxScope.() -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    0f to Color(0xFFFBFCFF),
-                    0.40f to Color.White,
-                    1f to Color(0xFFF4F7FB)
-                )
-            )
+            .background(internalSystemColors().backgroundBrush)
     ) {
         SoftGlow(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .offset(x = (-88).dp, y = 80.dp)
                 .size(210.dp),
-            color = AppBlue.copy(alpha = 0.13f)
+            color = AppBlue.copy(alpha = if (isSystemInDarkTheme()) 0.08f else 0.13f)
         )
 
         SoftGlow(
@@ -201,7 +273,7 @@ private fun AppBackground(content: @Composable BoxScope.() -> Unit) {
                 .align(Alignment.TopEnd)
                 .offset(x = 96.dp, y = 220.dp)
                 .size(190.dp),
-            color = Color(0xFFB5E4FF).copy(alpha = 0.34f)
+            color = Color(0xFFB5E4FF).copy(alpha = if (isSystemInDarkTheme()) 0.10f else 0.34f)
         )
 
         SoftGlow(
@@ -209,7 +281,7 @@ private fun AppBackground(content: @Composable BoxScope.() -> Unit) {
                 .align(Alignment.TopStart)
                 .offset(x = 26.dp, y = (-28).dp)
                 .size(190.dp),
-            color = AppBlue.copy(alpha = 0.09f)
+            color = AppBlue.copy(alpha = if (isSystemInDarkTheme()) 0.06f else 0.09f)
         )
 
         Box(
@@ -247,7 +319,7 @@ private fun FakeStatusBar() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("9:41", fontSize = 13.sp, color = Color(0xFF1D2433), fontWeight = FontWeight.Bold)
+        Text("9:41", fontSize = 13.sp, color = statusIconColor(), fontWeight = FontWeight.Bold)
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -258,12 +330,12 @@ private fun FakeStatusBar() {
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
-                Box(Modifier.width(3.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFF1D2433)))
-                Box(Modifier.width(3.dp).height(7.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFF1D2433)))
-                Box(Modifier.width(3.dp).height(10.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFF1D2433)))
+                Box(Modifier.width(3.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(statusIconColor()))
+                Box(Modifier.width(3.dp).height(7.dp).clip(RoundedCornerShape(2.dp)).background(statusIconColor()))
+                Box(Modifier.width(3.dp).height(10.dp).clip(RoundedCornerShape(2.dp)).background(statusIconColor()))
             }
 
-            Text("5G", fontSize = 13.sp, color = Color(0xFF1D2433), fontWeight = FontWeight.Bold)
+            Text("5G", fontSize = 13.sp, color = statusIconColor(), fontWeight = FontWeight.Bold)
             BatteryIcon()
         }
     }
@@ -271,8 +343,8 @@ private fun FakeStatusBar() {
 
 @Composable
 private fun BatteryIcon() {
+    val color = statusIconColor()
     Canvas(modifier = Modifier.size(width = 26.dp, height = 13.dp)) {
-        val color = Color(0xFF1D2433)
         drawRoundRect(
             color = color,
             topLeft = Offset(0f, 1.dp.toPx()),
@@ -326,7 +398,7 @@ private fun HomePageUi(
         TrustDashboardCard(trustDashboard)
         ActionTip(actionInfo, actionError)
 
-        SectionTitleBar(title = "当前系统安全情况", note = "2 项检测")
+        SectionTitleBar(title = "当前系统安全情况", note = "${securityCategory.detailSections.size.coerceAtLeast(2)} 项检测")
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -471,6 +543,37 @@ private fun SecurityPageUi(
     onRunSecurityCheck: () -> Unit,
     onRunTrustCheck: () -> Unit
 ) {
+    var detailType by remember { mutableStateOf<String?>(null) }
+    val sections = securitySections(securityCategory)
+    val softwareSections = sections.filter { it.isSoftwareSection() }
+    val hardwareSections = sections.filterNot { it.isSoftwareSection() }
+    if (detailType == "software") {
+        SecurityCategoryDetailPage(
+            title = "软件状态",
+            subtitle = "系统完整性、运行环境、基线、网络与应用风险",
+            badge = securityCategory.softwareBadge,
+            sections = softwareSections,
+            actionInfo = actionInfo,
+            actionError = actionError,
+            onBack = { detailType = null },
+            onRunSecurityCheck = onRunSecurityCheck
+        )
+        return
+    }
+    if (detailType == "hardware") {
+        SecurityCategoryDetailPage(
+            title = "硬件状态",
+            subtitle = "设备身份、上下文与生物能力",
+            badge = securityCategory.hardwareBadge,
+            sections = hardwareSections,
+            actionInfo = actionInfo,
+            actionError = actionError,
+            onBack = { detailType = null },
+            onRunSecurityCheck = onRunSecurityCheck
+        )
+        return
+    }
+
     PageScaffold {
         TopTitleBar(title = "安全状态", subtitle = "软件与硬件可信检测", buttonText = "检测", onClick = onRunSecurityCheck)
         ActionTip(actionInfo, actionError)
@@ -486,7 +589,10 @@ private fun SecurityPageUi(
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
-                    .clickable { onRunSecurityCheck() }
+                    .clickable {
+                        detailType = "software"
+                        onRunSecurityCheck()
+                    }
             ) {
                 SoftwareIcon(Modifier.size(23.dp), AppBlueDark)
             }
@@ -498,7 +604,10 @@ private fun SecurityPageUi(
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
                 modifier = Modifier.weight(1f)
-                    .clickable { onRunSecurityCheck() }
+                    .clickable {
+                        detailType = "hardware"
+                        onRunSecurityCheck()
+                    }
             ) {
                 HardwareIcon(Modifier.size(23.dp), Color(0xFF10B981))
             }
@@ -508,37 +617,45 @@ private fun SecurityPageUi(
 
         GlassPanel {
             MenuRow(
-                title = "完整性检测",
-                subtitle = securityCategory.softwareLines.firstOrNull() ?: "未发现篡改风险",
+                title = "软件安全明细",
+                subtitle = "查看 ${softwareSections.size} 个软件侧采集模块",
                 badge = securityCategory.softwareBadge,
-                badgeType = BadgeType.Success,
+                badgeType = badgeTypeFor(securityCategory.softwareBadge),
                 iconColor = AppBlueDark,
                 iconBg = AppBlue.copy(alpha = 0.10f),
-                onClick = onRunSecurityCheck
+                onClick = {
+                    detailType = "software"
+                    onRunSecurityCheck()
+                }
             ) {
-                ShieldCheckIcon(Modifier.size(23.dp), AppBlueDark)
+                SoftwareIcon(Modifier.size(23.dp), AppBlueDark)
             }
 
             Spacer(Modifier.height(10.dp))
 
             MenuRow(
-                title = "系统环境",
-                subtitle = securityCategory.hardwareLines.firstOrNull() ?: "系统状态稳定，未检测到异常环境",
+                title = "硬件安全明细",
+                subtitle = "查看 ${hardwareSections.size} 个硬件与设备能力模块",
                 badge = securityCategory.hardwareBadge,
-                badgeType = BadgeType.Success,
+                badgeType = badgeTypeFor(securityCategory.hardwareBadge),
                 iconColor = Color(0xFF10B981),
                 iconBg = Color(0xFF10B981).copy(alpha = 0.10f),
-                onClick = onRunSecurityCheck
+                onClick = {
+                    detailType = "hardware"
+                    onRunSecurityCheck()
+                }
             ) {
-                ClipboardIcon(Modifier.size(23.dp), Color(0xFF10B981))
+                HardwareIcon(Modifier.size(23.dp), Color(0xFF10B981))
             }
+        }
 
-            Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(10.dp))
 
+        GlassPanel {
             MenuRow(
-                title = "风险提示",
-                subtitle = "建议定期更新系统安全策略",
-                badge = "建议",
+                title = "信任评估",
+                subtitle = "将最新终端安全信息提交模型评估",
+                badge = "评估",
                 badgeType = BadgeType.Warning,
                 iconColor = Orange,
                 iconBg = Orange.copy(alpha = 0.10f),
@@ -549,6 +666,84 @@ private fun SecurityPageUi(
         }
 
         Spacer(Modifier.height(18.dp))
+    }
+}
+
+@Composable
+private fun SecurityCategoryDetailPage(
+    title: String,
+    subtitle: String,
+    badge: String,
+    sections: List<SecurityDetailSectionUiData>,
+    actionInfo: String?,
+    actionError: String?,
+    onBack: () -> Unit,
+    onRunSecurityCheck: () -> Unit
+) {
+    PageScaffold {
+        TopTitleBar(title = title, subtitle = subtitle, buttonText = "返回", onClick = onBack)
+        ActionTip(actionInfo, actionError)
+
+        SecuritySummaryPanel(
+            title = title,
+            subtitle = "已展示 ${sections.size} 个采集模块",
+            badge = badge,
+            onRefresh = onRunSecurityCheck
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        if (sections.isEmpty()) {
+            GlassPanel {
+                Text("暂无采集数据", color = textMainColor(), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text("请点击检测后刷新当前分类。", color = textMutedColor(), fontSize = 12.sp, lineHeight = 18.sp)
+            }
+        } else {
+            sections.forEachIndexed { index, section ->
+                SecurityDetailSection(section)
+                if (index != sections.lastIndex) Spacer(Modifier.height(10.dp))
+            }
+        }
+
+        Spacer(Modifier.height(18.dp))
+    }
+}
+
+@Composable
+private fun SecuritySummaryPanel(
+    title: String,
+    subtitle: String,
+    badge: String,
+    onRefresh: () -> Unit
+) {
+    GlassPanel {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = textMainColor(), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(5.dp))
+                Text(subtitle, color = textMutedColor(), fontSize = 12.sp, lineHeight = 18.sp)
+            }
+            Badge(badge, badgeTypeFor(badge))
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        MenuRow(
+            title = "重新检测",
+            subtitle = "重新采集当前终端安全信息并同步日志",
+            badge = "刷新",
+            badgeType = BadgeType.Warning,
+            iconColor = Orange,
+            iconBg = Orange.copy(alpha = 0.10f),
+            onClick = onRefresh
+        ) {
+            SyncIcon(Modifier.size(23.dp), Orange)
+        }
     }
 }
 
@@ -645,9 +840,9 @@ private fun TopTitleBar(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column {
-            Text(title, color = TextMain, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(title, color = textMainColor(), fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(5.dp))
-            Text(subtitle, color = TextMuted, fontSize = 12.sp)
+            Text(subtitle, color = textMutedColor(), fontSize = 12.sp)
         }
 
         Box(
@@ -659,14 +854,14 @@ private fun TopTitleBar(
                     spotColor = Color(0xFF202F4D).copy(alpha = 0.07f)
                 )
                 .clip(RoundedCornerShape(999.dp))
-                .background(Color.White.copy(alpha = 0.76f))
+                .background(panelColor())
                 .clickable(onClick = onClick)
                 .padding(horizontal = 13.dp, vertical = 9.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = buttonText,
-                color = if (buttonDanger) Color(0xFFC92A2A) else Color(0xFF586174),
+                color = if (buttonDanger) Color(0xFFC92A2A) else textSecondaryColor(),
                 fontSize = 13.sp
             )
         }
@@ -681,8 +876,8 @@ private fun TrustDashboardCard(data: TrustDashboardUiData) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("信任监控仪表盘", color = TextMain, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            Text(data.evaluatedAtText, color = TextMuted, fontSize = 12.sp)
+            Text("信任监控仪表盘", color = textMainColor(), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text(data.evaluatedAtText, color = textMutedColor(), fontSize = 12.sp)
         }
 
         Spacer(Modifier.height(18.dp))
@@ -700,7 +895,7 @@ private fun TrustDashboardCard(data: TrustDashboardUiData) {
                 Spacer(Modifier.height(11.dp))
                 Text(
                     text = data.summaryText,
-                    color = Color(0xFF667085),
+                    color = textSecondaryColor(),
                     fontSize = 13.sp,
                     lineHeight = 20.sp
                 )
@@ -713,11 +908,11 @@ private fun TrustDashboardCard(data: TrustDashboardUiData) {
                 }
                 if (data.requestIdText.isNotBlank()) {
                     Spacer(Modifier.height(10.dp))
-                    Text("请求ID: ${data.requestIdText}", color = TextMuted, fontSize = 11.sp)
+                    Text("请求ID: ${data.requestIdText}", color = textMutedColor(), fontSize = 11.sp)
                 }
                 if (data.resultLogPathText.isNotBlank()) {
                     Spacer(Modifier.height(2.dp))
-                    Text("日志: ${data.resultLogPathText}", color = TextMuted, fontSize = 11.sp)
+                    Text("日志: ${data.resultLogPathText}", color = textMutedColor(), fontSize = 11.sp)
                 }
             }
         }
@@ -740,8 +935,8 @@ private fun ScoreRing(score: Int) {
                 Brush.sweepGradient(
                     0.00f to AppBlue,
                     0.88f to AppBlue,
-                    0.89f to Color(0xFFE4E9F2),
-                    1.00f to Color(0xFFE4E9F2)
+                    0.89f to internalSystemColors().scoreTrack,
+                    1.00f to internalSystemColors().scoreTrack
                 )
             ),
         contentAlignment = Alignment.Center
@@ -750,14 +945,14 @@ private fun ScoreRing(score: Int) {
             modifier = Modifier
                 .size(114.dp)
                 .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.96f))
-                .border(1.dp, Line, CircleShape),
+                .background(internalSystemColors().scoreInner)
+                .border(1.dp, lineColor(), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(score.toString(), color = Color(0xFF101827), fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
+                Text(score.toString(), color = textMainColor(), fontSize = 38.sp, fontWeight = FontWeight.ExtraBold)
                 Spacer(Modifier.height(4.dp))
-                Text("信任分", color = Color(0xFF8C94A4), fontSize = 12.sp)
+                Text("信任分", color = textMutedColor(), fontSize = 12.sp)
             }
         }
     }
@@ -792,13 +987,13 @@ private fun ActionTip(info: String?, error: String?) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(if (isError) Color(0xFFFEE2E2) else Color(0xFFECFDF5))
-            .border(1.dp, if (isError) Color(0xFFFCA5A5) else Color(0xFF86EFAC), RoundedCornerShape(14.dp))
+            .background(if (isError) Red.copy(alpha = if (isSystemInDarkTheme()) 0.18f else 0.14f) else Green.copy(alpha = if (isSystemInDarkTheme()) 0.18f else 0.14f))
+            .border(1.dp, if (isError) Red.copy(alpha = 0.45f) else Green.copy(alpha = 0.45f), RoundedCornerShape(14.dp))
             .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
         Text(
             text = text,
-            color = if (isError) Color(0xFFB91C1C) else Color(0xFF065F46),
+            color = if (isError) if (isSystemInDarkTheme()) Color(0xFFFCA5A5) else Color(0xFFB91C1C) else if (isSystemInDarkTheme()) Color(0xFF86EFAC) else Color(0xFF065F46),
             fontSize = 12.sp,
             lineHeight = 17.sp
         )
@@ -811,13 +1006,13 @@ private fun MiniMetric(value: String, label: String, modifier: Modifier = Modifi
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFFF7FAFC).copy(alpha = 0.78f))
-            .border(1.dp, Line, RoundedCornerShape(16.dp))
+            .background(nestedPanelColor())
+            .border(1.dp, lineColor(), RoundedCornerShape(16.dp))
             .padding(10.dp)
     ) {
-        Text(value, color = TextMain, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(value, color = textMainColor(), fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(3.dp))
-        Text(label, color = TextMuted, fontSize = 11.sp)
+        Text(label, color = textMutedColor(), fontSize = 11.sp)
     }
 }
 
@@ -829,8 +1024,8 @@ private fun SectionTitleBar(title: String, note: String) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, color = TextMain, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-        Text(note, color = TextMuted, fontSize = 12.sp)
+        Text(title, color = textMainColor(), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+        Text(note, color = textMutedColor(), fontSize = 12.sp)
     }
     Spacer(Modifier.height(12.dp))
 }
@@ -854,8 +1049,8 @@ private fun SecurityStatusCard(
                 spotColor = Color(0xFF22304E).copy(alpha = 0.075f)
             )
             .clip(RoundedCornerShape(22.dp))
-            .background(Color.White.copy(alpha = 0.82f))
-            .border(1.dp, Color.White.copy(alpha = 0.82f), RoundedCornerShape(22.dp))
+            .background(panelColor())
+            .border(1.dp, lineColor().copy(alpha = 0.72f), RoundedCornerShape(22.dp))
             .padding(14.dp)
     ) {
         Row(
@@ -869,9 +1064,9 @@ private fun SecurityStatusCard(
 
         Spacer(Modifier.height(13.dp))
 
-        Text(title, color = TextMain, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = textMainColor(), fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(5.dp))
-        Text(description, color = Color(0xFF8B94A5), fontSize = 12.sp, lineHeight = 17.sp)
+        Text(description, color = textMutedColor(), fontSize = 12.sp, lineHeight = 17.sp)
     }
 }
 
@@ -917,7 +1112,7 @@ private fun AppItem(
                 )
                 .clip(RoundedCornerShape(18.dp))
                 .background(color.copy(alpha = 0.08f))
-                .border(1.dp, Color.White.copy(alpha = 0.88f), RoundedCornerShape(18.dp)),
+                .border(1.dp, lineColor().copy(alpha = 0.72f), RoundedCornerShape(18.dp)),
             contentAlignment = Alignment.Center
         ) {
             icon()
@@ -925,7 +1120,7 @@ private fun AppItem(
 
         Spacer(Modifier.height(7.dp))
 
-        Text(title, color = Color(0xFF5F6878), fontSize = 11.sp, maxLines = 1)
+        Text(title, color = textSecondaryColor(), fontSize = 11.sp, maxLines = 1)
     }
 }
 
@@ -936,8 +1131,8 @@ private fun InfoPanel(profile: InternalIdentityUiData) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("用户信息", color = TextMain, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            Text("基础资料", color = TextMuted, fontSize = 12.sp)
+            Text("用户信息", color = textMainColor(), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text("基础资料", color = textMutedColor(), fontSize = 12.sp)
         }
 
         Spacer(Modifier.height(12.dp))
@@ -960,15 +1155,15 @@ private fun InfoLine(label: String, value: String, last: Boolean = false) {
                 .padding(vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(label, color = TextMuted, fontSize = 13.sp)
-            Text(value, color = Color(0xFF263143), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text(label, color = textMutedColor(), fontSize = 13.sp)
+            Text(value, color = textMainColor(), fontSize = 13.sp, fontWeight = FontWeight.Bold)
         }
         if (!last) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(1.dp)
-                    .background(Line.copy(alpha = 0.90f))
+                    .background(lineColor().copy(alpha = 0.90f))
             )
         }
     }
@@ -989,8 +1184,8 @@ private fun GlassPanel(
                 spotColor = Color(0xFF22304E).copy(alpha = 0.10f)
             )
             .clip(RoundedCornerShape(28.dp))
-            .background(Color.White.copy(alpha = 0.86f))
-            .border(1.dp, Color.White.copy(alpha = 0.76f), RoundedCornerShape(28.dp))
+            .background(panelColor())
+            .border(1.dp, lineColor().copy(alpha = 0.72f), RoundedCornerShape(28.dp))
             .padding(padding),
         content = content
     )
@@ -1034,8 +1229,8 @@ private fun MenuRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFFF7FAFC).copy(alpha = 0.78f))
-            .border(1.dp, Line, RoundedCornerShape(20.dp))
+            .background(nestedPanelColor())
+            .border(1.dp, lineColor(), RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -1045,12 +1240,140 @@ private fun MenuRow(
         Spacer(Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = TextMain, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(title, color = textMainColor(), fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(3.dp))
-            Text(subtitle, color = Color(0xFF8B94A5), fontSize = 12.sp)
+            Text(subtitle, color = textMutedColor(), fontSize = 12.sp)
         }
 
         Badge(text = badge, type = badgeType)
+    }
+}
+
+@Composable
+private fun SecurityDetailSection(section: SecurityDetailSectionUiData, onClick: (() -> Unit)? = null) {
+    val badgeType = when (section.status.uppercase()) {
+        "DANGER", "CRITICAL", "ERROR" -> BadgeType.Danger
+        "WARN", "WARNING" -> BadgeType.Warning
+        else -> BadgeType.Success
+    }
+    val color = when (badgeType) {
+        BadgeType.Danger -> Red
+        BadgeType.Warning -> Orange
+        BadgeType.Success -> AppBlueDark
+    }
+    val cardModifier = Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(20.dp))
+        .background(nestedPanelColor())
+        .border(1.dp, lineColor(), RoundedCornerShape(20.dp))
+        .let { base -> if (onClick == null) base else base.clickable(onClick = onClick) }
+        .padding(12.dp)
+    Column(
+        modifier = cardModifier
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconBox(
+                    iconColor = color,
+                    iconBg = color.copy(alpha = 0.10f),
+                    size = 38.dp
+                ) {
+                    ShieldCheckIcon(Modifier.size(21.dp), color)
+                }
+                Spacer(Modifier.width(10.dp))
+                Text(section.title, color = textMainColor(), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            }
+            Badge(section.badge, badgeType)
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        section.rows.forEachIndexed { index, row ->
+            SecurityDetailRowItem(row)
+            if (index != section.rows.lastIndex) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(lineColor().copy(alpha = 0.72f))
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SecurityDetailRowItem(row: SecurityDetailRowUiData) {
+    val normalized = row.value.trim()
+    val positive = normalized in setOf("是", "支持", "可信", "已锁定", "已采集") ||
+        normalized.contains("正常") || normalized.contains("LOW") || normalized.contains("ALLOW")
+    val negative = normalized in setOf("否", "不支持", "不可信", "已解锁") ||
+        normalized.contains("风险") || normalized.contains("未授权") || normalized.contains("未获取") || normalized.contains("未知")
+    val dotColor = when {
+        negative -> Orange
+        positive -> Green
+        else -> AppBlueDark
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 9.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(top = 5.dp)
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(dotColor)
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(row.label, color = textMutedColor(), fontSize = 12.sp, lineHeight = 16.sp)
+            Spacer(Modifier.height(3.dp))
+            Text(
+                row.value,
+                color = textMainColor(),
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+private fun securitySections(securityCategory: SecurityCategoryUiData): List<SecurityDetailSectionUiData> {
+    return securityCategory.detailSections.ifEmpty {
+        listOf(
+            SecurityDetailSectionUiData(
+                title = "系统完整性",
+                badge = securityCategory.softwareBadge,
+                status = "SUCCESS",
+                rows = securityCategory.softwareLines.mapIndexed { index, value -> SecurityDetailRowUiData("检测项${index + 1}", value) }
+            ),
+            SecurityDetailSectionUiData(
+                title = "设备身份与上下文",
+                badge = securityCategory.hardwareBadge,
+                status = "SUCCESS",
+                rows = securityCategory.hardwareLines.mapIndexed { index, value -> SecurityDetailRowUiData("检测项${index + 1}", value) }
+            )
+        )
+    }
+}
+
+private fun SecurityDetailSectionUiData.isSoftwareSection(): Boolean {
+    return title in setOf("系统完整性", "运行环境风险", "系统基线", "网络安全", "应用风险")
+}
+
+private fun badgeTypeFor(text: String): BadgeType {
+    return when {
+        text.contains("风险") || text.contains("高") || text.contains("拒绝") -> BadgeType.Danger
+        text.contains("告警") || text.contains("一般") || text.contains("建议") || text.contains("评估") -> BadgeType.Warning
+        else -> BadgeType.Success
     }
 }
 
@@ -1112,8 +1435,8 @@ private fun BottomNavigationUi(selectedTab: String, onTabChange: (String) -> Uni
                 spotColor = Color(0xFF22304E).copy(alpha = 0.10f)
             )
             .clip(RoundedCornerShape(26.dp))
-            .background(Color.White.copy(alpha = 0.82f))
-            .border(1.dp, Color.White.copy(alpha = 0.86f), RoundedCornerShape(26.dp)),
+            .background(panelColor())
+            .border(1.dp, lineColor().copy(alpha = 0.72f), RoundedCornerShape(26.dp)),
         verticalAlignment = Alignment.CenterVertically
     ) {
         BottomNavItem("首页", selectedTab == "首页", Modifier.weight(1f), onClick = { onTabChange("首页") })
@@ -1149,7 +1472,7 @@ private fun BottomNavItem(
 
         Text(
             text = title,
-            color = if (selected) AppBlueDark else Color(0xFF8B94A5),
+            color = if (selected) AppBlueDark else textMutedColor(),
             fontSize = 10.5.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
         )

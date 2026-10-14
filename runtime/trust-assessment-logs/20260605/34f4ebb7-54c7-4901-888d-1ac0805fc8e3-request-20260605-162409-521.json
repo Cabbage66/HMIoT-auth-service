@@ -1,0 +1,215 @@
+{
+  "requestId" : "34f4ebb7-54c7-4901-888d-1ac0805fc8e3",
+  "type" : "request",
+  "loggedAt" : "2026-06-05T16:24:09.521271",
+  "payload" : {
+    "requestId" : "34f4ebb7-54c7-4901-888d-1ac0805fc8e3",
+    "userId" : 1,
+    "terminalId" : 2,
+    "clientType" : "ANDROID",
+    "authMethod" : "PASSWORD_LOGIN",
+    "forAccess" : false,
+    "events" : [ {
+      "eventType" : "TERMINAL_STATUS_SNAPSHOT",
+      "eventTime" : "2026-06-05T16:24:07",
+      "normalizedPayload" : {
+        "payload" : {
+          "hardware" : {
+            "clientIp" : "10.0.2.15",
+            "deviceId" : "3e4c2d0811c14d4b",
+            "androidId" : "3e4c2d0811c14d4b",
+            "appVersion" : "1.0",
+            "deviceBrand" : "google",
+            "deviceModel" : "sdk_gphone64_arm64",
+            "availableMem" : 6.59787776E8,
+            "batteryLevel" : 100.0,
+            "faceSupported" : true,
+            "secureHardware" : false,
+            "deviceIdentifier" : "google-sdk_gphone64_arm64-3e4c2d0811c14d4b",
+            "localFaceCompare" : true,
+            "storageFreeBytes" : 5.12866304E9,
+            "storageTotalBytes" : 6.228115456E9,
+            "voiceprintSupported" : true
+          },
+          "software" : {
+            "apiLevel" : 36.0,
+            "isRooted" : false,
+            "lowMemory" : false,
+            "osRelease" : "16",
+            "isEmulator" : true,
+            "hasHookRisk" : false,
+            "isVpnActive" : false,
+            "isAdbEnabled" : true,
+            "isWifiSecured" : false,
+            "securityPatch" : "2026-01-05",
+            "connectionType" : "WIFI",
+            "hasHighRiskApps" : false,
+            "allowUnknownSources" : false,
+            "isOsSignatureTrusted" : true,
+            "isAppSignatureTrusted" : true
+          },
+          "collectedAt" : "2026-06-05T16:24:06.572336",
+          "triggerScene" : "SECURITY_PAGE",
+          "clientLogPath" : "/data/user/0/com.hmiot.app/files/security-event-logs/terminal-security.jsonl"
+        },
+        "eventTime" : "2026-06-05T16:24:06.5723",
+        "eventType" : "TERMINAL_STATUS_SNAPSHOT",
+        "clientType" : "ANDROID",
+        "eventLevel" : "CRITICAL",
+        "terminalId" : 2
+      },
+      "eventLevel" : "CRITICAL"
+    }, {
+      "eventType" : "TERMINAL_STATUS_SNAPSHOT",
+      "eventTime" : "2026-06-05T16:21:34",
+      "normalizedPayload" : {
+        "payload" : {
+          "hardware" : {
+            "clientIp" : "10.0.2.15",
+            "deviceId" : "3e4c2d0811c14d4b",
+            "androidId" : "3e4c2d0811c14d4b",
+            "appVersion" : "1.0",
+            "deviceBrand" : "google",
+            "deviceModel" : "sdk_gphone64_arm64",
+            "availableMem" : 6.70752768E8,
+            "batteryLevel" : 100.0,
+            "faceSupported" : true,
+            "secureHardware" : false,
+            "deviceIdentifier" : "google-sdk_gphone64_arm64-3e4c2d0811c14d4b",
+            "localFaceCompare" : true,
+            "storageFreeBytes" : 5.128699904E9,
+            "storageTotalBytes" : 6.228115456E9,
+            "voiceprintSupported" : true
+          },
+          "software" : {
+            "apiLevel" : 36.0,
+            "isRooted" : false,
+            "lowMemory" : false,
+            "osRelease" : "16",
+            "isEmulator" : true,
+            "hasHookRisk" : false,
+            "isVpnActive" : false,
+            "isAdbEnabled" : true,
+            "isWifiSecured" : false,
+            "securityPatch" : "2026-01-05",
+            "connectionType" : "WIFI",
+            "hasHighRiskApps" : false,
+            "allowUnknownSources" : false,
+            "isOsSignatureTrusted" : true,
+            "isAppSignatureTrusted" : true
+          },
+          "collectedAt" : "2026-06-05T16:21:33.539455",
+          "triggerScene" : "SECURITY_PAGE",
+          "clientLogPath" : "/data/user/0/com.hmiot.app/files/security-event-logs/terminal-security.jsonl"
+        },
+        "eventTime" : "2026-06-05T16:21:33.539435",
+        "eventType" : "TERMINAL_STATUS_SNAPSHOT",
+        "clientType" : "ANDROID",
+        "eventLevel" : "CRITICAL",
+        "terminalId" : 2
+      },
+      "eventLevel" : "CRITICAL"
+    }, {
+      "eventType" : "TERMINAL_STATUS_SNAPSHOT",
+      "eventTime" : "2026-06-05T16:21:17",
+      "normalizedPayload" : {
+        "payload" : {
+          "hardware" : {
+            "clientIp" : "10.0.2.15",
+            "deviceId" : "3e4c2d0811c14d4b",
+            "androidId" : "3e4c2d0811c14d4b",
+            "appVersion" : "1.0",
+            "deviceBrand" : "google",
+            "deviceModel" : "sdk_gphone64_arm64",
+            "availableMem" : 6.68737536E8,
+            "batteryLevel" : 100.0,
+            "faceSupported" : true,
+            "secureHardware" : false,
+            "deviceIdentifier" : "google-sdk_gphone64_arm64-3e4c2d0811c14d4b",
+            "localFaceCompare" : true,
+            "storageFreeBytes" : 5.128634368E9,
+            "storageTotalBytes" : 6.228115456E9,
+            "voiceprintSupported" : true
+          },
+          "software" : {
+            "apiLevel" : 36.0,
+            "isRooted" : false,
+            "lowMemory" : false,
+            "osRelease" : "16",
+            "isEmulator" : true,
+            "hasHookRisk" : false,
+            "isVpnActive" : false,
+            "isAdbEnabled" : true,
+            "isWifiSecured" : false,
+            "securityPatch" : "2026-01-05",
+            "connectionType" : "WIFI",
+            "hasHighRiskApps" : false,
+            "allowUnknownSources" : false,
+            "isOsSignatureTrusted" : true,
+            "isAppSignatureTrusted" : true
+          },
+          "collectedAt" : "2026-06-05T16:21:16.687021",
+          "triggerScene" : "SECURITY_PAGE",
+          "clientLogPath" : "/data/user/0/com.hmiot.app/files/security-event-logs/terminal-security.jsonl"
+        },
+        "eventTime" : "2026-06-05T16:21:16.687003",
+        "eventType" : "TERMINAL_STATUS_SNAPSHOT",
+        "clientType" : "ANDROID",
+        "eventLevel" : "CRITICAL",
+        "terminalId" : 2
+      },
+      "eventLevel" : "CRITICAL"
+    }, {
+      "eventType" : "TERMINAL_STATUS_SNAPSHOT",
+      "eventTime" : "2026-06-05T16:20:34",
+      "normalizedPayload" : {
+        "payload" : {
+          "hardware" : {
+            "clientIp" : "10.0.2.15",
+            "deviceId" : "3e4c2d0811c14d4b",
+            "androidId" : "3e4c2d0811c14d4b",
+            "appVersion" : "1.0",
+            "deviceBrand" : "google",
+            "deviceModel" : "sdk_gphone64_arm64",
+            "availableMem" : 6.97868288E8,
+            "batteryLevel" : 100.0,
+            "faceSupported" : true,
+            "secureHardware" : false,
+            "deviceIdentifier" : "google-sdk_gphone64_arm64-3e4c2d0811c14d4b",
+            "localFaceCompare" : true,
+            "storageFreeBytes" : 5.128712192E9,
+            "storageTotalBytes" : 6.228115456E9,
+            "voiceprintSupported" : true
+          },
+          "software" : {
+            "apiLevel" : 36.0,
+            "isRooted" : false,
+            "lowMemory" : false,
+            "osRelease" : "16",
+            "isEmulator" : true,
+            "hasHookRisk" : false,
+            "isVpnActive" : false,
+            "isAdbEnabled" : true,
+            "isWifiSecured" : false,
+            "securityPatch" : "2026-01-05",
+            "connectionType" : "WIFI",
+            "hasHighRiskApps" : false,
+            "allowUnknownSources" : false,
+            "isOsSignatureTrusted" : true,
+            "isAppSignatureTrusted" : true
+          },
+          "collectedAt" : "2026-06-05T16:20:33.654367",
+          "triggerScene" : "LOGIN",
+          "clientLogPath" : "/data/user/0/com.hmiot.app/files/security-event-logs/terminal-security.jsonl"
+        },
+        "eventTime" : "2026-06-05T16:20:33.654314",
+        "eventType" : "TERMINAL_STATUS_SNAPSHOT",
+        "clientType" : "ANDROID",
+        "eventLevel" : "CRITICAL",
+        "terminalId" : 2
+      },
+      "eventLevel" : "CRITICAL"
+    } ],
+    "baselines" : [ ]
+  }
+}

@@ -26,6 +26,7 @@ import com.hmiot.app.feature.release.domain.ReleaseValidationRepository
 import com.hmiot.app.feature.terminal.data.TerminalMonitorApi
 import com.hmiot.app.feature.terminal.domain.TerminalMonitorRepository
 import com.hmiot.app.feature.terminal.domain.TerminalPayloadCleaner
+import com.hmiot.app.feature.terminal.domain.TerminalSecurityFileLogger
 import com.hmiot.app.feature.terminal.domain.TerminalStatusCollector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,14 +48,15 @@ class AppContainer(context: Context) {
     private val userProfileApi = ApiClient.retrofit.create(UserProfileApi::class.java)
 
     val authRepository = AuthRepository(authApi, terminalEventApi, sessionManager)
-    val registrationRepository = RegistrationRepository(registrationApi)
+    val registrationRepository = RegistrationRepository(registrationApi, preferenceStore)
     val certificateProfileRepository = CertificateProfileRepository(preferenceStore)
     val biometricRepository = BiometricRepository(biometricApi, VoiceSampleCollector(), preferenceStore)
     val terminalMonitorRepository = TerminalMonitorRepository(
         api = terminalMonitorApi,
         store = preferenceStore,
         collector = TerminalStatusCollector(context),
-        cleaner = TerminalPayloadCleaner()
+        cleaner = TerminalPayloadCleaner(),
+        fileLogger = TerminalSecurityFileLogger(context)
     )
     val policyRepository = PolicyRepository(policyApi, preferenceStore)
     val policyEngine = PolicyEngine()

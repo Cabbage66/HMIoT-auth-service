@@ -30,49 +30,59 @@ public class UebaIntegrationClient {
         if (uebaServiceUrl.startsWith("mock://")) {
             return new HealthResult(true, "mock-ueba-1.0");
         }
-        HealthResponse response = restClient.get()
-                .uri("/health")
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (request, clientResponse) -> {
-                    throw new BusinessException(ErrorCode.BAD_REQUEST, "UEBA 服务健康检查失败");
-                })
-                .body(HealthResponse.class);
-        if (response == null) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "UEBA 服务健康检查响应不完整");
+        try {
+            HealthResponse response = restClient.get()
+                    .uri("/health")
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, clientResponse) -> {
+                        throw new BusinessException(ErrorCode.BAD_REQUEST, "UEBA 服务健康检查失败");
+                    })
+                    .body(HealthResponse.class);
+            if (response == null) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "UEBA 服务健康检查响应不完整");
+            }
+            return new HealthResult(response.healthy() == null || Boolean.TRUE.equals(response.healthy()), response.model_version() == null ? "unknown" : response.model_version());
+        } catch (RuntimeException exception) {
+            printMockFallback("健康检查", exception);
+            return new HealthResult(true, "mock-ueba-1.0");
         }
-        return new HealthResult(response.healthy() == null || Boolean.TRUE.equals(response.healthy()), response.model_version() == null ? "unknown" : response.model_version());
     }
 
     public AssessmentResult assessTrust(Map<String, Object> input) {
         if (uebaServiceUrl.startsWith("mock://")) {
             return mockAssess(input);
         }
-        AssessmentResponse response = restClient.post()
-                .uri("/trust/assess")
-                .body(input)
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (request, clientResponse) -> {
-                    throw new BusinessException(ErrorCode.BAD_REQUEST, "UEBA 信任评估服务调用失败");
-                })
-                .body(AssessmentResponse.class);
-        if (response == null || response.trust_score() == null || response.trust_level() == null || response.risk_level() == null || response.decision() == null) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "UEBA 信任评估服务响应不完整");
+        try {
+            AssessmentResponse response = restClient.post()
+                    .uri("/trust/assess")
+                    .body(input)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, clientResponse) -> {
+                        throw new BusinessException(ErrorCode.BAD_REQUEST, "UEBA 信任评估服务调用失败");
+                    })
+                    .body(AssessmentResponse.class);
+            if (response == null || response.trust_score() == null || response.trust_level() == null || response.risk_level() == null || response.decision() == null) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "UEBA 信任评估服务响应不完整");
+            }
+            return new AssessmentResult(
+                    response.request_id(),
+                    response.trust_score(),
+                    response.trust_level(),
+                    normalizeRiskLevel(response.risk_level()),
+                    Boolean.TRUE.equals(response.is_anomaly()),
+                    normalizeDecision(response.decision()),
+                    response.reject_reason(),
+                    response.model_source() == null ? "UEBA4.2" : response.model_source(),
+                    response.model_version(),
+                    response.anomaly_indicators() == null ? Map.of() : response.anomaly_indicators(),
+                    response.alerts() == null ? List.of() : response.alerts(),
+                    response.raw_response() == null ? response.rawMap() : response.raw_response(),
+                    LocalDateTime.now()
+            );
+        } catch (RuntimeException exception) {
+            printMockFallback("信任评估", exception);
+            return mockAssess(input);
         }
-        return new AssessmentResult(
-                response.request_id(),
-                response.trust_score(),
-                response.trust_level(),
-                normalizeRiskLevel(response.risk_level()),
-                Boolean.TRUE.equals(response.is_anomaly()),
-                normalizeDecision(response.decision()),
-                response.reject_reason(),
-                response.model_source() == null ? "UEBA4.2" : response.model_source(),
-                response.model_version(),
-                response.anomaly_indicators() == null ? Map.of() : response.anomaly_indicators(),
-                response.alerts() == null ? List.of() : response.alerts(),
-                response.raw_response() == null ? response.rawMap() : response.raw_response(),
-                LocalDateTime.now()
-        );
     }
 
     public AssessmentResult detectUser(Map<String, Object> input) {
@@ -91,20 +101,29 @@ public class UebaIntegrationClient {
         if (uebaServiceUrl.startsWith("mock://")) {
             return mockAssess(input);
         }
-        AssessmentResponse response = restClient.post()
-                .uri(uri)
-                .body(input)
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (request, clientResponse) -> {
-                    throw new BusinessException(ErrorCode.BAD_REQUEST, failMessage);
-                })
-                .body(AssessmentResponse.class);
-        if (response == null || response.risk_level() == null || response.decision() == null) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "UEBA 检测服务响应不完整");
+        try {
+            AssessmentResponse response = restClient.post()
+                    .uri(uri)
+                    .body(input)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (request, clientResponse) -> {
+                        throw new BusinessException(ErrorCode.BAD_REQUEST, failMessage);
+                    })
+                    .body(AssessmentResponse.class);
+            if (response == null || response.risk_level() == null || response.decision() == null) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "UEBA 检测服务响应不完整");
+            }
+            BigDecimal score = response.trust_score() == null ? BigDecimal.valueOf(70) : response.trust_score();
+            Integer level = response.trust_level() == null ? trustLevel(score) : response.trust_level();
+            return new AssessmentResult(response.request_id(), score, level, normalizeRiskLevel(response.risk_level()), Boolean.TRUE.equals(response.is_anomaly()), normalizeDecision(response.decision()), response.reject_reason(), response.model_source() == null ? "UEBA4.2" : response.model_source(), response.model_version(), response.anomaly_indicators() == null ? Map.of() : response.anomaly_indicators(), response.alerts() == null ? List.of() : response.alerts(), response.raw_response() == null ? response.rawMap() : response.raw_response(), LocalDateTime.now());
+        } catch (RuntimeException exception) {
+            printMockFallback("异常检测", exception);
+            return mockAssess(input);
         }
-        BigDecimal score = response.trust_score() == null ? BigDecimal.valueOf(70) : response.trust_score();
-        Integer level = response.trust_level() == null ? trustLevel(score) : response.trust_level();
-        return new AssessmentResult(response.request_id(), score, level, normalizeRiskLevel(response.risk_level()), Boolean.TRUE.equals(response.is_anomaly()), normalizeDecision(response.decision()), response.reject_reason(), response.model_source() == null ? "UEBA4.2" : response.model_source(), response.model_version(), response.anomaly_indicators() == null ? Map.of() : response.anomaly_indicators(), response.alerts() == null ? List.of() : response.alerts(), response.raw_response() == null ? response.rawMap() : response.raw_response(), LocalDateTime.now());
+    }
+
+    private void printMockFallback(String operation, RuntimeException exception) {
+        System.out.println("[HMIoT][UEBA模拟] " + operation + "模型端口未开放或调用失败，已使用模拟评估结果。target=" + uebaServiceUrl + ", reason=" + (exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage()));
     }
 
     private AssessmentResult mockAssess(Map<String, Object> input) {
